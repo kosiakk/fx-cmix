@@ -2,10 +2,16 @@
   "corpora": {
     "input": {
       "bits_per_char": 0.983637,
-      "compress_seconds": 30.0,
+      "compress_seconds": 34.2,
       "compressed_bytes": 6154,
-      "decompress_seconds": 30.4,
+      "decompress_seconds": 31.5,
       "original_bytes": 50051
+    },
+    "input2": {
+      "bits_per_char": 1.559046,
+      "compress_seconds": 539.6,
+      "compressed_bytes": 181380,
+      "original_bytes": 930723
     }
   },
   "defines": "none",
@@ -18,8 +24,8 @@
   "march": "x86-64-v3",
   "mode": "noprep",
   "num_models": 490,
-  "peak_rss_kb": 2795436,
-  "quick": true,
+  "peak_rss_kb": 5722956,
+  "quick": false,
   "roundtrip_ok": true,
   "seed": 923
 }
