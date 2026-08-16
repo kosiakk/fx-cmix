@@ -58,6 +58,25 @@ PY
 
 mkdir -p "$HERE/results" "$HERE/logs"
 
+# One runner per machine. --workers bounds concurrency within a runner, so two
+# overlapping runners silently double it -- which on this box meant 4 concurrent
+# variants, 15 GB exhausted, and an OOM-killed baseline. Refuse rather than
+# oversubscribe.
+BUILD_ROOT_LOCK="${ABLATION_BUILD_ROOT:-/tmp/fx-cmix-ablation}"
+mkdir -p "$BUILD_ROOT_LOCK"
+RUNNER_LOCK="$BUILD_ROOT_LOCK/runner.lock"
+if ! mkdir "$RUNNER_LOCK" 2>/dev/null; then
+  OWNER=$(cat "$RUNNER_LOCK/pid" 2>/dev/null || echo "")
+  if [ -n "$OWNER" ] && kill -0 "$OWNER" 2>/dev/null; then
+    echo "another runner is already active on this machine (pid $OWNER)." >&2
+    echo "wait for it, or stop it before starting another." >&2
+    exit 3
+  fi
+  rm -rf "$RUNNER_LOCK"; mkdir "$RUNNER_LOCK" 2>/dev/null || exit 3
+fi
+echo $$ > "$RUNNER_LOCK/pid"
+trap 'rm -rf "$RUNNER_LOCK"' EXIT INT TERM
+
 mapfile -t ROWS < <(tail -n +2 "$HERE/variants.tsv" | grep -v '^[[:space:]]*$')
 
 SELECTED=()

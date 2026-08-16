@@ -172,6 +172,26 @@ def main():
                 break
 
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
+
+    # Never let a failed or partial run destroy a better result that already
+    # exists. An OOM-killed run once overwrote a complete baseline with a
+    # one-corpus failure, which silently removed the reference every delta in
+    # the study is measured against.
+    if os.path.exists(args.out):
+        try:
+            with open(args.out) as f:
+                prev = json.load(f)
+        except ValueError:
+            prev = None
+        if prev and not prev.get("failed"):
+            prev_c, new_c = set(prev.get("corpora", {})), set(result["corpora"])
+            if result["failed"] or new_c < prev_c:
+                print("[%s] keeping the existing result (%s) rather than "
+                      "overwriting it with %s" % (
+                          args.id, sorted(prev_c),
+                          "a failure" if result["failed"] else sorted(new_c)))
+                return 1
+
     with open(args.out, "w") as f:
         json.dump(result, f, indent=2, sort_keys=True)
         f.write("\n")
