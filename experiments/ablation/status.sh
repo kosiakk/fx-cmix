@@ -30,14 +30,24 @@ show() {
     pct=$(echo "$line" | awk '{print $1}')
     outb=$(echo "$line" | awk '{print $2}')
 
-    pid=$(pgrep -f "$BUILD_ROOT/$name/cmix" | head -1)
+    # Match on the binary path in /proc rather than pgrep: the pattern contains
+    # slashes and pgrep -f was silently matching nothing.
+    pid=""
+    for p in /proc/[0-9]*; do
+      [ -r "$p/cmdline" ] || continue
+      case "$(tr '\0' ' ' < "$p/cmdline" 2>/dev/null)" in
+        *"$BUILD_ROOT/$name/cmix "*) pid=${p#/proc/}; break ;;
+      esac
+    done
     if [ -n "$pid" ]; then
       rss=$(awk '/VmRSS/{printf "%.1f", $2/1048576}' /proc/"$pid"/status 2>/dev/null)
       el=$(ps -o etimes= -p "$pid" 2>/dev/null | tr -d ' ')
     fi
 
     # bits/char extrapolated from the fraction done so far. Compression
-    # improves as the model warms, so this reads slightly pessimistic early on.
+    # improves as the model warms, so this reads pessimistic early on -- which
+    # means BPC_EST is only comparable between variants at similar PCT. A
+    # variant further along will look better than it is.
     awk -v n="$name" -v p="$pct" -v o="$outb" -v e="${el:-0}" -v r="${rss:-0}" 'BEGIN{
       mb = o/1048576
       bpc = (p > 0) ? (o/(p/100)) * 8 / 100000000 : 0
