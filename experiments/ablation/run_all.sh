@@ -22,7 +22,9 @@ SHARD_I=1
 SHARD_N=1
 WORKERS=3
 ONLY=""
+RESUME=0
 export ABLATION_PUSH=0
+export ABLATION_QUICK=0
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -30,9 +32,29 @@ while [ $# -gt 0 ]; do
     --workers) WORKERS="$2"; shift 2 ;;
     --only)    ONLY="$2"; shift 2 ;;
     --push)    export ABLATION_PUSH=1; shift ;;
+    --quick)   export ABLATION_QUICK=1; shift ;;
+    --resume)  RESUME=1; shift ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
+
+# A variant counts as done if it has a result that did not fail and that covers
+# the corpora this invocation asks for. Runs get interrupted -- this machine's
+# container has been restarted mid-matrix -- so resuming must be cheap and must
+# never silently accept a partial result.
+is_done() {
+  python3 - "$HERE/results/$1.json" "$ABLATION_QUICK" <<'PY'
+import json, sys
+try:
+    d = json.load(open(sys.argv[1]))
+except Exception:
+    sys.exit(1)
+if d.get("failed"):
+    sys.exit(1)
+need = ["input"] if sys.argv[2] == "1" else ["input", "input2"]
+sys.exit(0 if all(c in d.get("corpora", {}) for c in need) else 1)
+PY
+}
 
 mkdir -p "$HERE/results" "$HERE/logs"
 
@@ -54,6 +76,10 @@ FAILED=()
 running=0
 for row in "${SELECTED[@]}"; do
   IFS=$'\t' read -r id defines mode group desc <<< "$row"
+  if [ $RESUME -eq 1 ] && is_done "$id"; then
+    echo "[$id] already done, skipping"
+    continue
+  fi
   (
     if ! "$HERE/run_variant.sh" "$id" "$defines" "$mode" > "$HERE/logs/$id.log" 2>&1; then
       echo "FAILED $id" >> "$HERE/logs/failures"
