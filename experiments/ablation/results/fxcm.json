@@ -1,0 +1,25 @@
+{
+  "corpora": {
+    "input": {
+      "bits_per_char": 1.042457,
+      "compress_seconds": 20.2,
+      "compressed_bytes": 6522,
+      "decompress_seconds": 18.8,
+      "original_bytes": 50051
+    }
+  },
+  "defines": "-DABLATE_FXCM",
+  "exe_bytes": 259576,
+  "exe_stripped_bytes": 224312,
+  "exe_upx_bytes": 99328,
+  "failed": false,
+  "host_cpu": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+  "id": "fxcm",
+  "march": "x86-64-v3",
+  "mode": "nodict",
+  "num_models": 51,
+  "peak_rss_kb": 1630084,
+  "quick": true,
+  "roundtrip_ok": true,
+  "seed": 923
+}
