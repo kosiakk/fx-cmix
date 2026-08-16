@@ -26,6 +26,7 @@ RESUME=0
 export ABLATION_PUSH=0
 export ABLATION_QUICK=0
 export ABLATION_CORPORA=""
+export ABLATION_PGO=0
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -35,6 +36,7 @@ while [ $# -gt 0 ]; do
     --push)    export ABLATION_PUSH=1; shift ;;
     --quick)   export ABLATION_QUICK=1; shift ;;
     --corpora) export ABLATION_CORPORA="$2"; shift 2 ;;
+    --pgo)     export ABLATION_PGO=1; shift ;;
     --resume)  RESUME=1; shift ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac

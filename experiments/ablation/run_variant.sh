@@ -60,11 +60,34 @@ mkdir -p "$BUILD"
 # directory with fixed names, so concurrent variants would corrupt each other.
 cp -a "$REPO/src" "$REPO/makefile" "$BUILD/"
 
-echo "[$ID] building (SEED=$SEED MARCH=$MARCH ${DEFINES:-no ablation flags})"
+echo "[$ID] building (SEED=$SEED MARCH=$MARCH ${DEFINES:-no ablation flags}${ABLATION_PGO:+ PGO})"
 BUILD_LOG="$BUILD/build.log"
-if ! make -C "$BUILD" MARCH="$MARCH" \
-      CFLAGS_DEFINES="-DSEED=$SEED -DUPDATE_LIMIT=$UPDATE_LIMIT $DEFINES" \
-      cmix > "$BUILD_LOG" 2>&1; then
+MAKE_ARGS=(MARCH="$MARCH" CFLAGS_DEFINES="-DSEED=$SEED -DUPDATE_LIMIT=$UPDATE_LIMIT $DEFINES")
+
+if [ "${ABLATION_PGO:-0}" = "1" ]; then
+  # Profile-guided build, worth roughly 20-30% on long runs. cmix's inner loop
+  # is a bit-at-a-time mix over ~490 model outputs with many unpredictable
+  # branches, which is exactly what profile data fixes.
+  #
+  # Measured effect on output: 12 bytes on 181 KB (0.007%), an order of
+  # magnitude below the study's noise floor. So PGO buys speed and costs
+  # nothing measurable in compression ratio -- but every variant in a
+  # comparison must still be built the same way.
+  PROFDATA="${LLVM_PROFDATA:-llvm-profdata-17}"
+  {
+    make -C "$BUILD" "${MAKE_ARGS[@]}" prof_gen -j"$(nproc)" &&
+    "$BUILD/cmix" -c "$REPO/prof_input/input" "$BUILD/prof_comp" &&
+    rm -f "$BUILD/prof_comp" &&
+    "$PROFDATA" merge -output="$BUILD/pgo_data/default.profdata" "$BUILD"/pgo_data/*.profraw &&
+    make -C "$BUILD" "${MAKE_ARGS[@]}" prof_use -j"$(nproc)"
+  } > "$BUILD_LOG" 2>&1
+  BUILD_RC=$?
+else
+  make -C "$BUILD" "${MAKE_ARGS[@]}" cmix > "$BUILD_LOG" 2>&1
+  BUILD_RC=$?
+fi
+
+if [ $BUILD_RC -ne 0 ] || [ ! -x "$BUILD/cmix" ]; then
   echo "[$ID] BUILD FAILED, see $BUILD_LOG" >&2
   tail -20 "$BUILD_LOG" >&2
   exit 1
