@@ -2,10 +2,16 @@
   "corpora": {
     "input": {
       "bits_per_char": 1.042457,
-      "compress_seconds": 19.0,
+      "compress_seconds": 14.8,
       "compressed_bytes": 6522,
-      "decompress_seconds": 20.1,
+      "decompress_seconds": 15.8,
       "original_bytes": 50051
+    },
+    "input2": {
+      "bits_per_char": 1.627432,
+      "compress_seconds": 250.6,
+      "compressed_bytes": 189336,
+      "original_bytes": 930723
     }
   },
   "defines": "-DABLATE_FXCM",
@@ -19,7 +25,7 @@
   "mode": "nodict",
   "num_models": 51,
   "peak_rss_kb": 1630096,
-  "quick": true,
+  "quick": false,
   "roundtrip_ok": true,
   "seed": 923
 }
