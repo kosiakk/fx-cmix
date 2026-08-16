@@ -49,10 +49,11 @@ def compress_cmd(binary, mode, repo, src, dst):
 
 
 def decompress_cmd(binary, mode, repo, src, dst):
+    # Note "-n" is compress-only -- runner.cpp routes both -c and -n to
+    # RunCompression, and the decompressor reads whether preprocessing was
+    # applied out of the stream header. So everything decompresses with -d.
     if mode == "dict":
         return [binary, "-d", os.path.join(repo, "dictionary/english.dic"), src, dst]
-    if mode == "noprep":
-        return [binary, "-n", src, dst]
     return [binary, "-d", src, dst]
 
 
@@ -92,8 +93,16 @@ def main():
             compress_cmd(args.binary, args.mode, args.repo, src, comp), workdir)
         if rc != 0 or not os.path.exists(comp):
             result["failed"] = True
-            result["error"] = "compress %s rc=%d: %s" % (
-                name, rc, out[-500:].decode("utf-8", "replace"))
+            if rc == -9:
+                # SIGKILL here means the OOM killer, not a codec bug. Each
+                # process reserves ~19 GB of address space and resident use
+                # climbs with input size; too many concurrent workers OOM.
+                result["error"] = ("compress %s killed (OOM) -- reduce "
+                                   "--workers" % name)
+                result["oom"] = True
+            else:
+                result["error"] = "compress %s rc=%d: %s" % (
+                    name, rc, out[-300:].decode("utf-8", "replace"))
             break
 
         m = NUM_MODELS_RE.search(out)
