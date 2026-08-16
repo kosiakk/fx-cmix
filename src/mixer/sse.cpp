@@ -3,6 +3,8 @@
 
 #include "sse.h"
 
+#include "../ablation.h"
+
 #include <math.h>
 
 namespace SSE_sh {
@@ -309,20 +311,32 @@ void M_Update( uint bit ) {
 
 using SSE_sh::M_T1;
 
+#if HAS_SSE
 SSE::SSE() : sse_(new M_T1()) {
   sse_->M_Init();
 }
+#else
+// Ablated: skip construction entirely, so the ~450 MB of SSE/mixer tables and
+// their eager M_Init() loop are never paid for either.
+SSE::SSE() : sse_(nullptr) {}
+#endif
 
 SSE::~SSE() {
   delete sse_;
 }
 
 float SSE::Predict(float input) {
+#if HAS_SSE
   int discrete = 1 + (1 - input) * 32766;
   int estimate = sse_->M_Estimate(discrete);
   return 1 - ((estimate - 1) / 32766.0);
+#else
+  return input;
+#endif
 }
 
 void SSE::Perceive(int bit) {
+#if HAS_SSE
   sse_->M_Update(bit);
+#endif
 }

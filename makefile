@@ -4,6 +4,14 @@ ROOT_DIR:=$(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 
 CPPFLAGS_PART-THAT-SHOULD-BE-FAST := $(CFLAGS_DEFINES) -m64 -Wall -std=c++17 -ffp-model=fast -fno-exceptions -fno-threadsafe-statics -Wno-unknown-escape-sequence -Wno-unused-variable -ffp-model=fast -fno-exceptions -fno-threadsafe-statics -Wno-unneeded-internal-declaration -Wno-unused-but-set-variable -Wno-format 
 
+ifdef MARCH
+# Explicit ISA target. Used by the ablation study (MARCH=x86-64-v3) so that
+# variants built on different machines are numerically comparable: fxcmv1.cpp
+# picks its dot-product kernel from __AVX2__/__SSE2__, and a different kernel
+# means different float rounding and so a different compressed size.
+$(info MARCH=$(MARCH))
+CPPFLAGS_PART-THAT-SHOULD-BE-FAST += -march=$(MARCH)
+else
 ifdef COREI7
 $(info COREI7 defined)
 CPPFLAGS_PART-THAT-SHOULD-BE-FAST += -march=corei7
@@ -14,6 +22,7 @@ CPPFLAGS_PART-THAT-SHOULD-BE-FAST += -march=znver2
 else
 CPPFLAGS_PART-THAT-SHOULD-BE-FAST += -march=native -mtune=native
 $(info native used)
+endif
 endif
 endif
 

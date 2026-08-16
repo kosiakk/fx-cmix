@@ -1,5 +1,6 @@
 #include "mixer.h"
 
+#include "../ablation.h"
 #include "sigmoid.h"
 
 #include <numeric>
@@ -64,6 +65,7 @@ void Mixer::Perceive(int bit) {
 //  decay *= 1.5f - ((1.0f * data->steps) / max_steps_);
 
   float decay;
+#if HAS_MIXER_DECAY
   if ( steps_ < 1000000) {
     decay = 1;
   } else {
@@ -77,6 +79,9 @@ void Mixer::Perceive(int bit) {
       }
     }
   }
+#else
+  decay = 1;
+#endif
   float update = decay * learning_rate_ * (Sigmoid::Logistic(p_) - bit);
   ++steps_;
   ++data->steps;
@@ -85,10 +90,12 @@ void Mixer::Perceive(int bit) {
   }
   data->weights -= update * inputs_;
   data->extra_weights -= update * extra_inputs_vec_[std::slice(0,extra_inputs_size_,1)];
+#if HAS_MIXER_WDECAY
 //  if (data->steps % 1000 == 0) {
   if ((data->steps & 1023) == 0) {
     data->weights *= 1.0f - 3.0e-6f;
     data->extra_weights *= 1.0f - 3.0e-6f;
   }
+#endif
 }
 

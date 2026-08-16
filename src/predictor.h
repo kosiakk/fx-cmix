@@ -1,6 +1,7 @@
 #ifndef PREDICTOR_H
 #define PREDICTOR_H
 
+#include "ablation.h"
 #include "mixer/sigmoid.h"
 #include "mixer/mixer-input.h"
 #include "mixer/mixer.h"
@@ -62,7 +63,11 @@ class Predictor {
   llvm::SmallVector<Match, 16> match_models_;
   std::optional<FXCM> fxcm_model_;
   std::optional<Bracket> bracket_model_;
-  size_t auxiliary_size_ = 2; // 0 -> fxcm, 1 -> byte_mixer
+  // The auxiliary inputs (fxcm, byte_mixer) are selected at compile time by
+  // ablation.h: AUX_AVERAGED counts what feeds auxiliary_context_, and
+  // AUX_SKIP_INPUTS counts the layer-1 skip connections. These were one
+  // variable, which also meant auxiliary_size_ was assigned after AddMixers()
+  // had already read its default.
   SSE sse_;
   llvm::SmallVector<MixerInput,2> layers_;
   llvm::SmallVector<Mixer, 25> mixer_0_;

@@ -11,37 +11,68 @@ Predictor::Predictor(const std::vector<bool>& vocab) : manager_(),
 //  srand(0xDEADBEEF);
   srand(SEED);
 
+#if HAS_BRACKET
   AddBracket();
+#endif
+#if HAS_FXCM
   AddFXCM();
+#endif
+#if HAS_PPMD
   AddPPMD();
+#endif
+#if HAS_WORD
   AddWord();
+#endif
+#if HAS_MATCH
   AddMatch();
+#endif
+#if HAS_DOUBLE_INDIRECT
   AddDoubleIndirect();
+#endif
   AddMixers();
-  auxiliary_size_ = 2;
 }
 
 unsigned long long Predictor::GetNumModels() {
   unsigned long long num = 0;
 
   // models
+#if HAS_BRACKET
   num += bracket_model_->NumOutputs(); // bracket
+#endif
+#if HAS_FXCM
   num += fxcm_model_->NumOutputs();
+#endif
   num += direct_models_.size();
   num += match_models_.size();
   num += indirect_ns_models_.size();
   num += indirect_r_models_.size();
+#if HAS_PPMD
   num += byte_model_->NumOutputs();
+#endif
+#if HAS_LSTM
   num += byte_mixer_->NumOutputs();
+#endif
   return num;
 }
 
 void Predictor::AddMixer(int layer, const unsigned long long& context,
     float learning_rate) {
   if (layer == 0) {
+#if HAS_MIXER_GATING
+    const unsigned long long& gate = context;
+#else
+    // Ablation: same mixer count, same learning rates, but every gate reads
+    // the constant context, so no mixer can specialise on anything.
+    const unsigned long long& gate = manager_.zero_context_;
+#endif
+#if HAS_MIXER_RECURRENCE
+    const size_t extra = mixer_0_.size();
+#else
+    const size_t extra = 0;
+#endif
     mixer_0_.emplace_back(
-        layers_[layer].Inputs(), layers_[layer].ExtraInputs(), context,
-      learning_rate, mixer_0_.size());
+        layers_[layer].Inputs(), layers_[layer].ExtraInputs(), gate,
+      learning_rate, extra);
   } else {
     mixer_1_.emplace_back(
         layers_[layer].Inputs(), layers_[layer].ExtraInputs(), context,
@@ -124,8 +155,10 @@ void Predictor::AddMixers() {
   for (unsigned int i = 0; i < vocab_.size(); ++i) {
     if (vocab_[i]) ++vocab_size;
   }
+#if HAS_LSTM
   byte_mixer_.emplace(1, manager_.bit_context_, vocab_,
       vocab_size, new Lstm(vocab_size, vocab_size, 200, 1, 128, 0.03, 10));
+#endif
 
   for (int i = 0; i < 2; ++i) {
     layers_.emplace_back(sigmoid_,
@@ -243,24 +276,32 @@ void Predictor::AddMixers() {
       manager_.recent_bytes_[1], 256, 256);
   AddMixer(0, combined2.GetContext(), 0.003);
 
-  input_size = mixer_0_.size() + auxiliary_size_;
+  input_size = mixer_0_.size() + AUX_SKIP_INPUTS;
   layers_[1].SetNumModels(input_size);
   AddMixer(1, manager_.zero_context_, 0.0003);
 
+#if HAS_MIXER_RECURRENCE
   layers_[0].SetExtraInputSize(mixer_0_.size());
+#else
+  layers_[0].SetExtraInputSize(0);
+#endif
 }
 
 float Predictor::Predict() {
   unsigned int input_index = 0;
+#if HAS_BRACKET
   auto bracket_model_output = bracket_model_->Predict()[0];
   layers_[0].SetInput(input_index++, bracket_model_output);
+#endif
 
+#if HAS_FXCM
   const auto& fxcm_model_outputs = fxcm_model_->Predict();
   for (unsigned int j = 0; j < fxcm_model_outputs.size(); ++j) {
     layers_[0].SetInput(input_index, fxcm_model_outputs[j]);
     ++input_index;
   }
   auto fxcm_model_index = input_index - 1;
+#endif
 
   for (unsigned int i = 0; i < direct_models_.size(); ++i) {
     const std::valarray<float>& outputs = direct_models_[i].Predict();
@@ -293,38 +334,67 @@ float Predictor::Predict() {
       ++input_index;
     }
   }
+#if HAS_PPMD
   layers_[0].SetInput(input_index++, byte_model_->Predict()[0]);
+#endif
 
+#if HAS_LSTM
   float byte_mixer_override = -1;
   auto byte_mixer_output = byte_mixer_->Predict()[0];
+#if HAS_LSTM_OVERRIDE
   if (byte_mixer_output == 0 || byte_mixer_output == 1) byte_mixer_override = byte_mixer_output;
+#endif
   layers_[0].SetInput(input_index++, byte_mixer_output);
   auto byte_mixer_index = input_index - 1;
+#endif
 
-  float auxiliary_average = Sigmoid::Logistic(layers_[0].Inputs()[fxcm_model_index]) + Sigmoid::Logistic(layers_[0].Inputs()[byte_mixer_index]);
-  auxiliary_average /= auxiliary_size_;
+#if AUX_AVERAGED > 0
+  float auxiliary_average = 0;
+#if HAS_FXCM
+  auxiliary_average += Sigmoid::Logistic(layers_[0].Inputs()[fxcm_model_index]);
+#endif
+#if HAS_LSTM
+  auxiliary_average += Sigmoid::Logistic(layers_[0].Inputs()[byte_mixer_index]);
+#endif
+  auxiliary_average /= AUX_AVERAGED;
   manager_.auxiliary_context_ = auxiliary_average * 15;
+#endif
 
   for (unsigned int i = 0; i < mixer_0_.size(); ++i) {
     float p = mixer_0_[i].Mix();
+#if HAS_MIXER_RECURRENCE
     layers_[0].SetExtraInput(i, p);
+#endif
     layers_[1].SetStretchedInput(i, p);
   }
-  layers_[1].SetStretchedInput(mixer_0_.size(), layers_[0].Inputs()[fxcm_model_index]);
-  layers_[1].SetStretchedInput(mixer_0_.size() + 1, layers_[0].Inputs()[byte_mixer_index]);
+#if AUX_SKIP_INPUTS > 0
+  unsigned int skip_index = mixer_0_.size();
+#if HAS_FXCM
+  layers_[1].SetStretchedInput(skip_index++, layers_[0].Inputs()[fxcm_model_index]);
+#endif
+#if HAS_LSTM
+  layers_[1].SetStretchedInput(skip_index++, layers_[0].Inputs()[byte_mixer_index]);
+#endif
+#endif
 
   float p = Sigmoid::Logistic(mixer_1_[0].Mix());
   p = sse_.Predict(p);
+#if HAS_LSTM && HAS_LSTM_OVERRIDE
   if (byte_mixer_override >= 0) {
     return byte_mixer_override;
   }
+#endif
   return p;
 }
 
 void Predictor::Perceive(int bit) {
+#if HAS_BRACKET
   bracket_model_->Perceive(bit);
+#endif
+#if HAS_FXCM
   fxcm_model_->Perceive(bit);
-    
+#endif
+
   for (unsigned int i = 0; i < direct_models_.size(); ++i) {
     direct_models_[i].Perceive(bit);
   }
@@ -339,9 +409,13 @@ void Predictor::Perceive(int bit) {
   }
 
 
+#if HAS_PPMD
   byte_model_->Perceive(bit);
+#endif
 
+#if HAS_LSTM
   byte_mixer_->Perceive(bit);
+#endif
 
   for (auto& mixer: mixer_0_) {
     mixer.Perceive(bit);
@@ -357,8 +431,12 @@ void Predictor::Perceive(int bit) {
 
   manager_.UpdateContexts(bit);
   if (byte_update) {
+#if HAS_BRACKET
     bracket_model_->ByteUpdate();
+#endif
+#if HAS_FXCM
     fxcm_model_->ByteUpdate();
+#endif
 
     for (unsigned int i = 0; i < direct_models_.size(); ++i) {
       direct_models_[i].ByteUpdate();
@@ -375,24 +453,32 @@ void Predictor::Perceive(int bit) {
     }
 
 
+#if HAS_PPMD
     byte_model_->ByteUpdate();
 
-
+#if HAS_LSTM
+    // The LSTM's only input is PPM's byte distribution -- see ablation.h.
     const std::valarray<float>& p = byte_model_->BytePredict();
     for (unsigned int j = 0; j < 256; ++j) {
       byte_mixer_->SetInput(j, p[j]);
     }
-    
+
     byte_mixer_->ByteUpdate();
- 
+#endif
+#endif
+
     manager_.bit_context_ = 1;
   }
 }
 
 void Predictor::Pretrain(int bit) {
+#if HAS_BRACKET
   bracket_model_->Predict();
+#endif
+#if HAS_FXCM
   fxcm_model_->Predict();
-    
+#endif
+
   for (unsigned int i = 0; i < direct_models_.size(); ++i) {
     direct_models_[i].Predict();
   }
@@ -407,9 +493,13 @@ void Predictor::Pretrain(int bit) {
   }
 
 
+#if HAS_BRACKET
   bracket_model_->Perceive(bit);
+#endif
+#if HAS_FXCM
   fxcm_model_->Perceive(bit);
-    
+#endif
+
   for (unsigned int i = 0; i < direct_models_.size(); ++i) {
     direct_models_[i].Perceive(bit);
   }
@@ -428,8 +518,12 @@ void Predictor::Pretrain(int bit) {
   if (manager_.bit_context_ >= 128) byte_update = true;
   manager_.UpdateContexts(bit);
   if (byte_update) {
+#if HAS_BRACKET
     bracket_model_->ByteUpdate();
+#endif
+#if HAS_FXCM
     fxcm_model_->ByteUpdate();
+#endif
 
     for (unsigned int i = 0; i < direct_models_.size(); ++i) {
       direct_models_[i].ByteUpdate();
