@@ -30,7 +30,7 @@ typedef unsigned long long qword;
 // This will reduce RAM usage, but will be slower as well. *Warning*: this will
 // write a *lot* of data to disk, so can reduce the lifespan of SSDs. Not
 // recommended for normal usage.
-bool mmap_to_disk = true;
+bool mmap_to_disk = false;
 qword mmap_size;
 static constexpr char mmap_path[] = "ppm.temp";
 
