@@ -67,15 +67,16 @@ def break_even(results, base):
     figures are pessimistic for them. Treat as an order of magnitude.
     """
     base_upx = base.get("exe_upx_bytes")
-    base_bpc = bpc(base, "input2")
+    corpus = "input2" if bpc(base, "input2") is not None else "input"
+    base_bpc = bpc(base, corpus)
     if not base_upx or base_bpc is None:
-        return "Break-even sizes need the baseline's exe size and input2 result."
+        return "Break-even sizes need the baseline's exe size and a corpus result."
 
     rows = []
     for r in results.values():
         if r["id"] == "baseline" or r.get("failed"):
             continue
-        upx, b2 = r.get("exe_upx_bytes"), bpc(r, "input2")
+        upx, b2 = r.get("exe_upx_bytes"), bpc(r, corpus)
         if not upx or b2 is None:
             continue
         exe_cost = base_upx - upx          # bytes of binary the mechanism costs
@@ -89,6 +90,8 @@ def break_even(results, base):
 
     rows.sort()
     out = ["### Break-even corpus size",
+           "",
+           "_Savings measured on `%s`._" % corpus,
            "",
            "How much input a mechanism must see before the bytes it saves "
            "exceed the bytes its code costs in the packed executable.",
@@ -116,9 +119,12 @@ def main():
     base = results["baseline"]
 
     # Noise floor: how far the seed replicates move the number when nothing
-    # about the model has changed.
-    seeds = [bpc(results[i], "input2") for i in ("baseline", "seed1", "seed7919")
-             if i in results and bpc(results[i], "input2") is not None]
+    # about the model has changed. Falls back to the small corpus while the
+    # full pass is still running.
+    noise_corpus = "input2" if bpc(base, "input2") is not None else "input"
+    seeds = [bpc(results[i], noise_corpus)
+             for i in ("baseline", "seed1", "seed7919")
+             if i in results and bpc(results[i], noise_corpus) is not None]
     noise = (max(seeds) - min(seeds)) if len(seeds) > 1 else None
 
     print("| Variant | Group | Models | input 0.05 MB | Δ | input2 0.93 MB | Δ | UPX exe | Δ exe | Verdict |")
@@ -129,21 +135,29 @@ def main():
         if info.get(r["id"], ("integrity",))[0] in GROUP_ORDER else 99,
         -(bpc(r, "input2") or 0)))
 
+    # The baseline may not cover both corpora yet (a --quick pass covers only
+    # the small one), so a delta is only defined where both sides exist.
+    base1, base2 = bpc(base, "input"), bpc(base, "input2")
+
     for r in rows:
         group, _ = info.get(r["id"], ("?", ""))
         b1, b2 = bpc(r, "input"), bpc(r, "input2")
-        d1 = None if b1 is None else b1 - bpc(base, "input")
-        d2 = None if b2 is None else b2 - bpc(base, "input2")
+        d1 = None if (b1 is None or base1 is None) else b1 - base1
+        d2 = None if (b2 is None or base2 is None) else b2 - base2
+
+        # Judge on the largest corpus this variant actually has, so the table
+        # stays meaningful while the full pass is still filling in.
+        dprim = d2 if d2 is not None else d1
 
         if r.get("failed"):
             verdict = "**FAILED** " + r.get("error", "")[:60]
         elif r["id"] == "baseline":
             verdict = "reference"
-        elif d2 is None:
+        elif dprim is None:
             verdict = "-"
-        elif noise is not None and abs(d2) <= noise:
+        elif noise is not None and abs(dprim) <= noise:
             verdict = "below noise"
-        elif d2 < 0:
+        elif dprim < 0:
             verdict = "**improves**"
         else:
             verdict = "costs bits"
@@ -162,8 +176,8 @@ def main():
     print(break_even(results, base))
     print()
     if noise is not None:
-        print("Noise floor (seed replicate spread on input2): **%.4f bits/char**."
-              % noise)
+        print("Noise floor (seed replicate spread on `%s`): **%.4f bits/char**."
+              % (noise_corpus, noise))
     fails = [r["id"] for r in results.values() if r.get("failed")]
     if fails:
         print("\nFailed variants: " + ", ".join(sorted(fails)))
