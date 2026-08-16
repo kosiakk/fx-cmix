@@ -60,7 +60,11 @@ def main():
     ap = argparse.ArgumentParser()
     for flag in ("id", "binary", "mode", "defines", "seed", "march", "repo", "out"):
         ap.add_argument("--" + flag, required=True)
+    ap.add_argument("--quick", action="store_true",
+                    help="only the 50 KB corpus, for smoke-testing the harness")
     args = ap.parse_args()
+
+    corpora = CORPORA[:1] if args.quick else CORPORA
 
     workdir = os.path.dirname(os.path.abspath(args.binary))
     result = {
@@ -76,9 +80,10 @@ def main():
         "num_models": None,
         "peak_rss_kb": 0,
         "failed": False,
+        "quick": args.quick,
     }
 
-    for name, rel in CORPORA:
+    for name, rel in corpora:
         src = os.path.join(args.repo, rel)
         comp = os.path.join(workdir, name + ".comp")
         original = os.path.getsize(src)
