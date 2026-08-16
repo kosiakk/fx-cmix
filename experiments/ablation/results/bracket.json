@@ -2,10 +2,16 @@
   "corpora": {
     "input": {
       "bits_per_char": 0.983477,
-      "compress_seconds": 30.4,
+      "compress_seconds": 44.2,
       "compressed_bytes": 6153,
-      "decompress_seconds": 33.9,
+      "decompress_seconds": 31.7,
       "original_bytes": 50051
+    },
+    "input2": {
+      "bits_per_char": 1.559467,
+      "compress_seconds": 533.5,
+      "compressed_bytes": 181429,
+      "original_bytes": 930723
     }
   },
   "defines": "-DABLATE_BRACKET",
@@ -18,8 +24,8 @@
   "march": "x86-64-v3",
   "mode": "nodict",
   "num_models": 487,
-  "peak_rss_kb": 2713004,
-  "quick": true,
+  "peak_rss_kb": 5640404,
+  "quick": false,
   "roundtrip_ok": true,
   "seed": 923
 }
