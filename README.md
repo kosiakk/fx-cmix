@@ -43,7 +43,7 @@ Time, disk, and RAM usage are approximately symmetric for compression and decomp
 # Instructions
 The installation and usage instructions for fx-cmix are the same as for fast-cmix.
 
-One important note: it is recommended to change one variable in the source code for PPM. From line 26 in src/models/ppmd.cpp:
+One important note about a variable in the source code for PPM. From line 33 in src/models/ppmd.cpp:
 
 ```
 // If mmap_to_disk is set to false (recommended setting), PPM will only use RAM
@@ -52,10 +52,18 @@ One important note: it is recommended to change one variable in the source code 
 // This will reduce RAM usage, but will be slower as well. *Warning*: this will
 // write a *lot* of data to disk, so can reduce the lifespan of SSDs. Not
 // recommended for normal usage.
-bool mmap_to_disk = true;
+bool mmap_to_disk = false;
 ```
 
-This variable is set to true by default, to comply with the Hutter Prize RAM limit.
+This variable now defaults to `false` (RAM-only), which is the recommended
+setting for normal use. Set it back to `true` only when building a
+RAM-constrained, Hutter-Prize-compliant submission: with it enabled, PPM
+periodically `munmap`s and remaps its backing file, which is not guaranteed
+to land at the same virtual address on every platform/kernel — on some
+setups this crashes partway through a run. It also pre-allocates a backing
+file on disk sized for a full enwik9-scale run (tens of GB) regardless of
+how small the input actually is, so don't enable it on a machine with
+limited disk space.
 
 # Installing packages required for compiling fx-cmix compressor from sources on Ubuntu
 Building fx-cmix compressor from sources requires clang-17, upx-ucl, and make packages.
@@ -63,6 +71,15 @@ On Ubuntu, these packages can be installed by running the following scripts:
 ```bash
 ./install_tools/install_upx.sh
 ./install_tools/install_clang-17.sh
+```
+
+On Ubuntu 22.04/24.04, `clang-17` and `upx-ucl` are also available directly
+from the standard `universe` repository, so the LLVM apt repo used by
+`install_clang-17.sh` (`apt.llvm.org`) isn't strictly required — useful in
+sandboxed/CI environments that don't allow that host:
+```bash
+sudo apt-get update
+sudo apt-get install -y clang-17 upx-ucl make
 ```
 
 # Compiling fx-cmix compressor from sources
