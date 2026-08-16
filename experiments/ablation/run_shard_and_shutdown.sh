@@ -59,10 +59,11 @@ gcloud storage cp "$LOG" "$BUCKET/logs/" 2>/dev/null || true
 # rc=4 means no variant matched: a caller error, not a finished shard. Staying
 # up costs money, but powering off a provisioned machine because of a typo
 # costs more -- and that is exactly what happened once.
-if [ "$(cat "$RC_FILE" 2>/dev/null || echo 1)" = "4" ]; then
-  echo "NOT shutting down: no variants matched. Fix the ids and relaunch."
-  exit 4
-fi
+SHARD_RC="$(cat "$RC_FILE" 2>/dev/null || echo 1)"
+case "$SHARD_RC" in
+  4) echo "NOT shutting down: no variants matched. Fix the ids and relaunch."; exit 4 ;;
+  5) echo "NOT shutting down: every variant failed. See the log above."; exit 5 ;;
+esac
 
 echo "=== $(date -u +%FT%TZ) shutting down ==="
 sudo shutdown -h +1

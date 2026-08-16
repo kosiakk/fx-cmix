@@ -134,5 +134,15 @@ echo
 if [ -s "$HERE/logs/failures" ]; then
   echo "failures:"; cat "$HERE/logs/failures"
 fi
+if [ -s "$HERE/logs/failures" ]; then
+  nfail=$(wc -l < "$HERE/logs/failures")
+  if [ "$nfail" -ge "${#SELECTED[@]}" ]; then
+    echo "every selected variant failed -- not a completed shard" >&2
+    echo "results in $HERE/results:"
+    ls -1 "$HERE/results" 2>/dev/null | sed 's/^/  /'
+    exit 5
+  fi
+fi
+
 echo "results in $HERE/results:"
 ls -1 "$HERE/results" 2>/dev/null | sed 's/^/  /'

@@ -21,9 +21,9 @@ import time
 CORPORA = {
     "input": "prof_input/input",            # 50 KB
     "input2": "prof_input/input2",          # 930 KB
-    "enwik8_5m": "corpora/enwik8_5m",       # 5 MB
-    "enwik8_10m": "corpora/enwik8_10m",     # 10 MB
-    "enwik8": "corpora/enwik8",             # 100 MB
+    "enwik8_5m": "experiments/ablation/corpora/enwik8_5m",    # 5 MB
+    "enwik8_10m": "experiments/ablation/corpora/enwik8_10m",  # 10 MB
+    "enwik8": "experiments/ablation/corpora/enwik8",          # 100 MB
 }
 DEFAULT_ORDER = ["input", "input2"]
 
