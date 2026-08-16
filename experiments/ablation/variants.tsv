@@ -22,3 +22,7 @@ prep_none	-	noprep	preprocess	No preprocessing at all
 fxcm_check	-DABLATE_FXCM	nodict	integrity	Duplicate of fxcm on another host; must match byte for byte
 e8_baseline	-	nodict	enwik8	Full enwik8 reference, PGO build on a dedicated VM
 e8_match	-DABLATE_MATCH	nodict	enwik8	Full enwik8: do match models earn bits once their 100 MB history fills?
+e8_bracket	-DABLATE_BRACKET	nodict	enwik8	Full enwik8: bracket was below noise at 930 KB
+e8_lstm	-DABLATE_LSTM	nodict	enwik8	Full enwik8: LSTM grew 4x between 50 KB and 930 KB
+e8_mixgate	-DABLATE_MIXER_GATING	nodict	enwik8	Full enwik8: gating costs +16 bytes of binary, does it hold up?
+e8_fxcm	-DABLATE_FXCM	nodict	enwik8	Full enwik8: bounds the scale of the dominant mechanism

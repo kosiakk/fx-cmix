@@ -100,6 +100,14 @@ done
 
 echo "shard $SHARD_I/$SHARD_N: ${#SELECTED[@]} variants, $WORKERS concurrent"
 
+# Selecting nothing is a mistake in the caller, not a finished run. Say so and
+# fail, so a self-terminating runner does not power the machine off having
+# done no work.
+if [ ${#SELECTED[@]} -eq 0 ]; then
+  echo "no variants matched -- check the ids against variants.tsv" >&2
+  exit 4
+fi
+
 FAILED=()
 running=0
 for row in "${SELECTED[@]}"; do
