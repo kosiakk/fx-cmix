@@ -1,0 +1,25 @@
+{
+  "corpora": {
+    "input": {
+      "bits_per_char": 0.986993,
+      "compress_seconds": 14.2,
+      "compressed_bytes": 6175,
+      "decompress_seconds": 15.5,
+      "original_bytes": 50051
+    }
+  },
+  "defines": "-DABLATE_LSTM",
+  "exe_bytes": 284056,
+  "exe_stripped_bytes": 244856,
+  "exe_upx_bytes": 110200,
+  "failed": false,
+  "host_cpu": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+  "id": "lstm",
+  "march": "x86-64-v3",
+  "mode": "nodict",
+  "num_models": 489,
+  "peak_rss_kb": 2766380,
+  "quick": true,
+  "roundtrip_ok": true,
+  "seed": 923
+}
