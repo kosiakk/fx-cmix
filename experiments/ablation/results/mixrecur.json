@@ -1,0 +1,25 @@
+{
+  "corpora": {
+    "input": {
+      "bits_per_char": 0.985075,
+      "compress_seconds": 32.6,
+      "compressed_bytes": 6163,
+      "decompress_seconds": 29.7,
+      "original_bytes": 50051
+    }
+  },
+  "defines": "-DABLATE_MIXER_RECURRENCE",
+  "exe_bytes": 322352,
+  "exe_stripped_bytes": 281736,
+  "exe_upx_bytes": 126264,
+  "failed": false,
+  "host_cpu": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+  "id": "mixrecur",
+  "march": "x86-64-v3",
+  "mode": "nodict",
+  "num_models": 490,
+  "peak_rss_kb": 2794280,
+  "quick": true,
+  "roundtrip_ok": true,
+  "seed": 923
+}
