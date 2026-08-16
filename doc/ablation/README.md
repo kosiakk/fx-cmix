@@ -19,8 +19,9 @@ judge; this is a map.
 
 **The corpus is ~1 MB, and enwik9 is 1 GB.** Everything here runs on
 `prof_input/input` (50 KB) and `prof_input/input2` (930 KB, a real enwik prefix
-beginning at `<mediawiki>`). Those are the only wiki-format files in the repo,
-and this environment's network policy blocks enwik8/enwik9 downloads.
+beginning at `<mediawiki>`) — the only wiki-format files in the repo. Larger
+corpora are supported but were not run: `fetch_corpora.sh` cuts enwik8
+prefixes, and `--corpora` selects them.
 
 Three consequences, stated plainly:
 
@@ -35,6 +36,11 @@ Three consequences, stated plainly:
    against 1 GB.
 3. **So read the ranking, not the magnitudes.** A delta here says "this
    mechanism is load-bearing", not "this mechanism is worth X bytes on enwik9".
+
+At this build's measured 1.67 KB/s, full enwik8 is ~17 h per variant and enwik9
+~170 h, against containers that were reclaimed after as little as 9 minutes and
+a codec with no checkpoint/resume. That, not the network, is why the study
+stops at 930 KB.
 
 **Deltas below the noise floor are not results.** The floor is the spread
 across three RNG seeds. `SEED` sets `Indirect`'s `map_offset_`, so changing it
@@ -56,7 +62,8 @@ coupled PPM+LSTM case is just two flags).
   the same "cross entropy" `cmix -c` prints after each run.
 - **Configuration**: model and mixer ablations run `cmix -c IN OUT` (text
   detection on, dictionary off). Preprocessing is studied separately, because
-  the CLI already exposes three levels for free.
+  the CLI already exposes its levels for free. Note this baseline turned out to
+  be equivalent to no preprocessing at all — see 05-preprocessing.md.
 - **Correctness**: every variant round-trips the 50 KB corpus and must
   reproduce it byte-for-byte. A variant that fails is a **bug, not a result**,
   and is labelled as such.
@@ -83,11 +90,34 @@ mid-study.
 
 ## Results
 
-See `results.md` for the master table, and the per-mechanism chapters for what
-each removal did and why.
+**[results.md](results.md)** — master table, ranking, break-even sizes, and the
+prediction scorecard. Start there.
 
-Predictions were written and committed in `predictions.md` **before** any
-variant finished, so they can be scored honestly rather than retrofitted.
+Per-mechanism chapters, each covering what was removed, what was predicted,
+what was measured, and why:
+
+| | |
+| --- | --- |
+| [01-fxcm.md](01-fxcm.md) | the context-mixing engine, 439 of 490 inputs |
+| [02-ppm-and-lstm.md](02-ppm-and-lstm.md) | the coupled pair, attributed by difference |
+| [03-mixing.md](03-mixing.md) | gating, recurrence, skips, decay, SSE, the LSTM override |
+| [04-context-models.md](04-context-models.md) | word, match, double-indirect, bracket |
+| [05-preprocessing.md](05-preprocessing.md) | the dictionary — the largest effect in the study |
+| [06-method-and-noise.md](06-method-and-noise.md) | noise floor, null test, and mistakes made |
+
+Predictions were written and committed in **[predictions.md](predictions.md)**
+*before* any variant finished, so they are scored honestly rather than
+retrofitted. Six hits, two near, nine misses — with one systematic bias.
+
+## Headline
+
+Baseline is **1.5589 bits/char** on the 930 KB corpus. Removing the entire
+fxcm model — 90 % of the ensemble by input count — costs **4.40 %**. Nothing
+else costs more than 1.4 %. The dictionary, by contrast, *saves* **0.1970
+bits/char**, three times what fxcm is worth.
+
+This is a many-small-contributions system. No component's removal collapses it,
+and no single component is hiding a large win.
 
 ## Reproducing
 
