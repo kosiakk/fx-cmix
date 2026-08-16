@@ -60,15 +60,26 @@ coupled PPM+LSTM case is just two flags).
 - **Correctness**: every variant round-trips the 50 KB corpus and must
   reproduce it byte-for-byte. A variant that fails is a **bug, not a result**,
   and is labelled as such.
+- **Executable size**: each variant's UPX-packed binary is measured too. The
+  prize scores `S = S1 (executable) + S2 (archive)`, so a mechanism that costs
+  more binary bytes than it saves archive bytes is a net loss. From that pair
+  comes the **break-even corpus size** — how much input a mechanism must see
+  before its savings overtake its own code. These are non-PGO `-O3` builds, so
+  absolute `S1` will not match a real submission; the differences between
+  variants are the point.
 - **No PGO**: it changes speed, not output.
-- **Pinned ISA**: all builds use `MARCH=x86-64-v3`. `fxcmv1.cpp` picks its
-  dot-product kernel from `__AVX2__`/`__SSE2__`, and a different kernel means
-  different float rounding and so a different compressed size. This was not
-  hypothetical — the host backing this session changed from a 2.10 GHz to a
-  2.80 GHz Xeon mid-study.
+- **Pinned ISA**: all builds use `MARCH=x86-64-v3`. This is about *size*, not
+  speed: `fxcmv1.cpp` picks its dot-product kernel from `__AVX2__`/`__SSE2__`,
+  and under `-ffp-model=fast` a different kernel can reorder float arithmetic,
+  shifting predictions and so the compressed size — at the same magnitude as
+  the effects being measured. Pinning is cheap insurance for the headline
+  metric.
 
-**Wall times are indicative only** and should not be compared across rows: the
-host changed mid-study and variants ran two at a time on a 4 vCPU box.
+**Compression ratio is the result here. Timing is a side channel** — useful for
+spotting a mechanism that costs a lot of time for few bits, but not a criterion
+this study tries to measure precisely. Wall times are not comparable across
+rows: variants ran two at a time on a 4 vCPU box, and the host changed
+mid-study.
 
 ## Results
 
