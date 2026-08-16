@@ -1,0 +1,21 @@
+ID	DEFINES	MODE	GROUP	DESCRIPTION
+baseline	-	nodict	baseline	Unmodified ensemble, all 490 inputs
+seed1	-	nodict	noise	Baseline rebuilt with SEED=1
+seed7919	-	nodict	noise	Baseline rebuilt with SEED=7919
+fxcm	-DABLATE_FXCM	nodict	ensemble	Remove the fxcmv1 model (439 of 490 inputs)
+ppmd	-DABLATE_PPMD	nodict	ensemble	Remove PPM; implies removing the LSTM it feeds
+lstm	-DABLATE_LSTM	nodict	ensemble	Remove the LSTM byte mixer, keep PPM
+bracket	-DABLATE_BRACKET	nodict	ensemble	Remove the bracket model plus its direct and indirect
+word	-DABLATE_WORD	nodict	ensemble	Remove the 25 word-context models
+match	-DABLATE_MATCH	nodict	ensemble	Remove the 10 order-N match models
+dindirect	-DABLATE_DOUBLE_INDIRECT	nodict	ensemble	Remove the 11 double-indirect models
+sse	-DABLATE_SSE	nodict	mixing	Bypass the final two-stage SSE calibrator
+mixgate	-DABLATE_MIXER_GATING	nodict	mixing	All 25 layer-0 gates read the constant context
+mixrecur	-DABLATE_MIXER_RECURRENCE	nodict	mixing	Remove cross-mixer feedback within a bit
+mixskip	-DABLATE_MIXER_SKIP	nodict	mixing	Remove fxcm and LSTM skip connections into layer 1
+mixdecay	-DABLATE_MIXER_DECAY	nodict	mixing	Constant learning rate, no step-count decay
+mixwdecay	-DABLATE_MIXER_WDECAY	nodict	mixing	Remove the periodic mixer weight decay
+lstmover	-DABLATE_LSTM_OVERRIDE	nodict	mixing	Remove the LSTM hard-bypass on saturated output
+prep_dict	-	dict	preprocess	Full preprocessing: WRT dictionary plus pretraining
+prep_nopretrain	-DABLATE_PRETRAIN	dict	preprocess	WRT dictionary transform, no pretraining
+prep_none	-	noprep	preprocess	No preprocessing at all

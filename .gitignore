@@ -4,3 +4,6 @@ pgo_data/
 progress.log
 run/
 ppm.temp
+
+# ablation study build trees and binaries
+experiments/ablation/logs/
