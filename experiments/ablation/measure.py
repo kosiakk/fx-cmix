@@ -35,19 +35,35 @@ ROUNDTRIP_MAX_BYTES = 1_000_000
 NUM_MODELS_RE = re.compile(rb"num models (\d+)")
 
 
-def run(cmd, cwd):
-    """Run cmd, returning (elapsed_seconds, peak_rss_kb, returncode, output)."""
+def run(cmd, cwd, log_path):
+    """Run cmd, returning (elapsed_seconds, peak_rss_kb, returncode, output).
+
+    Output is streamed to log_path so a multi-hour run can be watched live,
+    then read back for parsing.
+    """
     before = resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss
     start = time.monotonic()
-    proc = subprocess.run(cmd, cwd=cwd, stdout=subprocess.PIPE,
-                          stderr=subprocess.STDOUT)
+    # Stream to a file rather than capturing into a pipe. A pipe hides
+    # everything until the process exits, which on a multi-hour run means no
+    # way to see whether it is progressing at all -- the output is read back
+    # afterwards for parsing.
+    with open(log_path, "ab") as log:
+        log.write(b"\n=== %s\n" % " ".join(cmd).encode())
+        log.flush()
+        proc = subprocess.run(cmd, cwd=cwd, stdout=log, stderr=subprocess.STDOUT)
     elapsed = time.monotonic() - start
     after = resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss
     # ru_maxrss is the high-water mark across all reaped children, so it only
     # tells us about this child if it exceeded every previous one. Runs are
     # ordered largest-last within a variant, and each variant is its own
     # process, so this is the peak for the variant as a whole.
-    return elapsed, max(after, before), proc.returncode, proc.stdout
+    try:
+        with open(log_path, "rb") as f:
+            f.seek(max(0, os.path.getsize(log_path) - 65536))
+            tail = f.read()
+    except OSError:
+        tail = b""
+    return elapsed, max(after, before), proc.returncode, tail
 
 
 def exe_sizes(binary):
@@ -127,6 +143,7 @@ def main():
         return 2
 
     workdir = os.path.dirname(os.path.abspath(args.binary))
+    run_log = os.path.join(workdir, "run.log")
     result = {
         "id": args.id,
         "defines": args.defines,
@@ -156,7 +173,8 @@ def main():
         original = os.path.getsize(src)
 
         elapsed, rss, rc, out = run(
-            compress_cmd(args.binary, args.mode, args.repo, src, comp), workdir)
+            compress_cmd(args.binary, args.mode, args.repo, src, comp),
+            workdir, run_log)
         if rc != 0 or not os.path.exists(comp):
             result["failed"] = True
             if rc == -9:
@@ -192,7 +210,7 @@ def main():
             decomp = os.path.join(workdir, name + ".decomp")
             elapsed, rss, rc, out = run(
                 decompress_cmd(args.binary, args.mode, args.repo, comp, decomp),
-                workdir)
+                workdir, run_log)
             result["peak_rss_kb"] = max(result["peak_rss_kb"], rss)
             ok = rc == 0 and os.path.exists(decomp) and \
                 open(src, "rb").read() == open(decomp, "rb").read()
