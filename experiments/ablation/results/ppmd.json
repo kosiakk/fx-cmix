@@ -1,0 +1,25 @@
+{
+  "corpora": {
+    "input": {
+      "bits_per_char": 0.995465,
+      "compress_seconds": 13.8,
+      "compressed_bytes": 6228,
+      "decompress_seconds": 13.7,
+      "original_bytes": 50051
+    }
+  },
+  "defines": "-DABLATE_PPMD",
+  "exe_bytes": 257376,
+  "exe_stripped_bytes": 220232,
+  "exe_upx_bytes": 95372,
+  "failed": false,
+  "host_cpu": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+  "id": "ppmd",
+  "march": "x86-64-v3",
+  "mode": "nodict",
+  "num_models": 488,
+  "peak_rss_kb": 2765284,
+  "quick": true,
+  "roundtrip_ok": true,
+  "seed": 923
+}
