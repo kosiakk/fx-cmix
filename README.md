@@ -102,3 +102,27 @@ The compressor is expected to output an executable file named `archive9` in the 
 cd ./run
 ./archive9
 ```
+
+# Quick sanity-check benchmark
+A full `-e`/`archive9` cycle only makes sense against enwik9 and can run for
+days, so it's not a practical way to check that a fresh build actually works.
+`prof_input/input` and `prof_input/input2` (used for PGO profiling by
+`build_and_construct_comp.sh`) double as small, fast smoke-test inputs for
+plain `-c`/`-d` round trips:
+```bash
+cd ./run
+./cmix -c ../prof_input/input2 input2.comp
+./cmix -d input2.comp input2.decomp
+diff ../prof_input/input2 input2.decomp   # should report no differences
+```
+
+Measured on this build (Ubuntu 24.04, `clang-17`, 4 vCPU, 15 GB RAM, `mmap_to_disk = false`):
+
+| Input | Size (bytes) | Compressed (bytes) | bits/char | Compress time | Decompress time |
+| --- | --- | --- | --- | --- | --- |
+| `prof_input/input` | 50 051 | 6 154 | 0.984 | ~22 s | ~23 s |
+| `prof_input/input2` | 930 723 | 181 376 | 1.559 | ~398 s | ~404 s |
+
+`bits/char` is `compressed_bytes * 8 / original_bytes` — the same "cross
+entropy" value `cmix -c` prints after each run. Both round trips reproduced
+the original file byte-for-byte.
