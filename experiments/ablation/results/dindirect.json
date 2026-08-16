@@ -1,0 +1,25 @@
+{
+  "corpora": {
+    "input": {
+      "bits_per_char": 0.985874,
+      "compress_seconds": 32.1,
+      "compressed_bytes": 6168,
+      "decompress_seconds": 29.2,
+      "original_bytes": 50051
+    }
+  },
+  "defines": "-DABLATE_DOUBLE_INDIRECT",
+  "exe_bytes": 317536,
+  "exe_stripped_bytes": 277640,
+  "exe_upx_bytes": 124624,
+  "failed": false,
+  "host_cpu": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+  "id": "dindirect",
+  "march": "x86-64-v3",
+  "mode": "nodict",
+  "num_models": 479,
+  "peak_rss_kb": 2137792,
+  "quick": true,
+  "roundtrip_ok": true,
+  "seed": 923
+}
