@@ -33,7 +33,27 @@ esac
 
 [ "$DEFINES" = "-" ] && DEFINES=""
 
-mkdir -p "$RESULTS" "$BUILD"
+mkdir -p "$RESULTS" "$BUILD_ROOT"
+
+# Take a lock before touching the build tree. Containers here get reclaimed
+# without warning, so a stalled shard has to be safe to restart at any moment;
+# without this, a restart would rm -rf a build tree that a live run is still
+# using. mkdir is atomic, so it works as the lock.
+LOCK="$BUILD_ROOT/$ID.lock"
+if ! mkdir "$LOCK" 2>/dev/null; then
+  # Reclaim the lock if the process that held it is gone.
+  OWNER=$(cat "$LOCK/pid" 2>/dev/null || echo "")
+  if [ -n "$OWNER" ] && kill -0 "$OWNER" 2>/dev/null; then
+    echo "[$ID] already running as pid $OWNER, skipping"
+    exit 0
+  fi
+  echo "[$ID] taking over a stale lock from pid ${OWNER:-unknown}"
+  rm -rf "$LOCK"
+  mkdir "$LOCK" 2>/dev/null || { echo "[$ID] lost the lock race, skipping"; exit 0; }
+fi
+echo $$ > "$LOCK/pid"
+trap 'rm -rf "$LOCK"' EXIT INT TERM
+
 rm -rf "$BUILD"
 mkdir -p "$BUILD"
 # Isolated build tree: the makefile writes *.o and cmix into the working
