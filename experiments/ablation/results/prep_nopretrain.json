@@ -1,0 +1,28 @@
+{
+  "corpora": {
+    "input": {
+      "bits_per_char": 0.771373,
+      "compress_seconds": 20.7,
+      "compressed_bytes": 4826,
+      "decompress_seconds": 23.6,
+      "original_bytes": 50051
+    },
+    "input2": {
+      "bits_per_char": 1.366989,
+      "compress_seconds": 302.1,
+      "compressed_bytes": 159036,
+      "original_bytes": 930723
+    }
+  },
+  "defines": "-DABLATE_PRETRAIN",
+  "failed": false,
+  "host_cpu": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+  "id": "prep_nopretrain",
+  "march": "x86-64-v3",
+  "mode": "dict",
+  "num_models": 490,
+  "peak_rss_kb": 5803564,
+  "quick": false,
+  "roundtrip_ok": true,
+  "seed": 923
+}
