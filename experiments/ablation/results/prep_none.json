@@ -1,0 +1,25 @@
+{
+  "corpora": {
+    "input": {
+      "bits_per_char": 0.983637,
+      "compress_seconds": 30.0,
+      "compressed_bytes": 6154,
+      "decompress_seconds": 30.4,
+      "original_bytes": 50051
+    }
+  },
+  "defines": "none",
+  "exe_bytes": 322416,
+  "exe_stripped_bytes": 281736,
+  "exe_upx_bytes": 126272,
+  "failed": false,
+  "host_cpu": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+  "id": "prep_none",
+  "march": "x86-64-v3",
+  "mode": "noprep",
+  "num_models": 490,
+  "peak_rss_kb": 2795436,
+  "quick": true,
+  "roundtrip_ok": true,
+  "seed": 923
+}
