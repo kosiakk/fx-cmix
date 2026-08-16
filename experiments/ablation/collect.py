@@ -155,7 +155,9 @@ def main():
             verdict = "reference"
         elif dprim is None:
             verdict = "-"
-        elif noise is not None and abs(dprim) <= noise:
+        elif noise is not None and round(abs(dprim), 4) <= round(noise, 4):
+            # Rounded, or a delta sitting exactly on the floor is classified by
+            # floating-point dust rather than by the measurement.
             verdict = "below noise"
         elif dprim < 0:
             verdict = "**improves**"
@@ -189,11 +191,23 @@ def main():
     print("\nHosts: " + "; ".join(hosts))
 
     if "fxcm" in results and "fxcm_check" in results:
-        a = bpc(results["fxcm"], "input2")
-        b = bpc(results["fxcm_check"], "input2")
-        print("\nCross-host integrity (fxcm vs fxcm_check on input2): %s vs %s -- %s"
-              % (fmt(a), fmt(b),
-                 "match" if a == b else "**MISMATCH, do not pool shards**"))
+        for c in ("input2", "input"):
+            a, b = bpc(results["fxcm"], c), bpc(results["fxcm_check"], c)
+            if a is None or b is None:
+                continue
+            ha = results["fxcm"].get("host_cpu")
+            hb = results["fxcm_check"].get("host_cpu")
+            print("\nIntegrity check on `%s`: fxcm %s vs fxcm_check %s -- %s"
+                  % (c, fmt(a), fmt(b),
+                     "identical" if a == b
+                     else "**MISMATCH, do not pool results**"))
+            print("Built on %s and %s." % (ha, hb)
+                  + ("" if ha != hb else
+                     " Same host, so this checks determinism rather than"
+                     " cross-host reproducibility."))
+            break
+        else:
+            print("\nIntegrity check: pending, no corpus covered by both yet.")
     return 0
 
 
