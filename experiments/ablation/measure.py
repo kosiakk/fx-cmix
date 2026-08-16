@@ -40,6 +40,34 @@ def run(cmd, cwd):
     return elapsed, max(after, before), proc.returncode, proc.stdout
 
 
+def exe_sizes(binary):
+    """Stripped and UPX-compressed size of the variant's executable.
+
+    The Hutter Prize scores S = S1 (executable) + S2 (archive), so a mechanism
+    that costs more binary bytes than it saves archive bytes is a net loss.
+    These are non-PGO -O3 builds, so absolute S1 will not match a real
+    submission; the differences between variants are what matter.
+    """
+    plain = os.path.getsize(binary)
+    packed = None
+    tmp = binary + ".upx"
+    try:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+        subprocess.run(["strip", "-o", tmp, binary],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if not os.path.exists(tmp):
+            return plain, None, None
+        stripped = os.path.getsize(tmp)
+        r = subprocess.run(["upx-ucl", "-9", "-q", tmp],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if r.returncode == 0:
+            packed = os.path.getsize(tmp)
+        return plain, stripped, packed
+    except OSError:
+        return plain, None, None
+
+
 def compress_cmd(binary, mode, repo, src, dst):
     if mode == "dict":
         return [binary, "-c", os.path.join(repo, "dictionary/english.dic"), src, dst]
@@ -83,6 +111,12 @@ def main():
         "failed": False,
         "quick": args.quick,
     }
+
+    # Recorded before the corpus runs, so it survives even if one is killed.
+    plain, stripped, packed = exe_sizes(args.binary)
+    result["exe_bytes"] = plain
+    result["exe_stripped_bytes"] = stripped
+    result["exe_upx_bytes"] = packed
 
     for name, rel in corpora:
         src = os.path.join(args.repo, rel)

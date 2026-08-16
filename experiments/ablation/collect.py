@@ -54,6 +54,57 @@ def signed(v):
     return ("+%.4f" if v >= 0 else "%.4f") % v
 
 
+def break_even(results, base):
+    """At what corpus size does each mechanism pay back its own binary cost?
+
+    The Hutter Prize scores S = S1 (executable) + S2 (archive). Keeping a
+    mechanism costs E = exe_upx(full) - exe_upx(ablated) bytes of executable,
+    and saves d = delta bits/char on every byte of input. So it breaks even at
+    N = E / (d/8) bytes of corpus. Below that size the mechanism is dead weight;
+    above it, it pays.
+
+    Measured on ~1 MB, so d for long-range mechanisms is understated and these
+    figures are pessimistic for them. Treat as an order of magnitude.
+    """
+    base_upx = base.get("exe_upx_bytes")
+    base_bpc = bpc(base, "input2")
+    if not base_upx or base_bpc is None:
+        return "Break-even sizes need the baseline's exe size and input2 result."
+
+    rows = []
+    for r in results.values():
+        if r["id"] == "baseline" or r.get("failed"):
+            continue
+        upx, b2 = r.get("exe_upx_bytes"), bpc(r, "input2")
+        if not upx or b2 is None:
+            continue
+        exe_cost = base_upx - upx          # bytes of binary the mechanism costs
+        d = b2 - base_bpc                  # bits/char the mechanism saves
+        if exe_cost <= 0 or d <= 0:
+            continue
+        rows.append((exe_cost / (d / 8.0), r["id"], exe_cost, d))
+
+    if not rows:
+        return "No mechanism has both a positive binary cost and a positive saving yet."
+
+    rows.sort()
+    out = ["### Break-even corpus size",
+           "",
+           "How much input a mechanism must see before the bytes it saves "
+           "exceed the bytes its code costs in the packed executable.",
+           "",
+           "| Mechanism | Exe cost (B) | Saves (bits/char) | Breaks even at |",
+           "| --- | ---: | ---: | ---: |"]
+    for n, vid, cost, d in rows:
+        size = ("%.1f KB" % (n / 1e3)) if n < 1e6 else ("%.1f MB" % (n / 1e6))
+        out.append("| `%s` | %d | %.4f | %s |" % (vid, cost, d, size))
+    out.append("")
+    out.append("enwik9 is 1 000 MB, so anything breaking even well below that "
+               "earns its place; anything near or above it is a candidate for "
+               "removal on a size-scored benchmark.")
+    return "\n".join(out)
+
+
 def main():
     results = load()
     info = meta()
@@ -70,8 +121,8 @@ def main():
              if i in results and bpc(results[i], "input2") is not None]
     noise = (max(seeds) - min(seeds)) if len(seeds) > 1 else None
 
-    print("| Variant | Group | Models | input 0.05 MB | Δ | input2 0.93 MB | Δ | Verdict |")
-    print("| --- | --- | ---: | ---: | ---: | ---: | ---: | --- |")
+    print("| Variant | Group | Models | input 0.05 MB | Δ | input2 0.93 MB | Δ | UPX exe | Δ exe | Verdict |")
+    print("| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |")
 
     rows = sorted(results.values(), key=lambda r: (
         GROUP_ORDER.index(info.get(r["id"], ("integrity",))[0])
@@ -97,10 +148,18 @@ def main():
         else:
             verdict = "costs bits"
 
-        print("| `%s` | %s | %s | %s | %s | %s | %s | %s |" % (
-            r["id"], group, r.get("num_models") or "-",
-            fmt(b1), signed(d1), fmt(b2), signed(d2), verdict))
+        upx = r.get("exe_upx_bytes")
+        dupx = None if (upx is None or base.get("exe_upx_bytes") is None) \
+            else upx - base["exe_upx_bytes"]
 
+        print("| `%s` | %s | %s | %s | %s | %s | %s | %s | %s | %s |" % (
+            r["id"], group, r.get("num_models") or "-",
+            fmt(b1), signed(d1), fmt(b2), signed(d2),
+            upx if upx else "-",
+            "-" if dupx is None else ("%+d" % dupx), verdict))
+
+    print()
+    print(break_even(results, base))
     print()
     if noise is not None:
         print("Noise floor (seed replicate spread on input2): **%.4f bits/char**."
