@@ -50,9 +50,11 @@ if ! make -C "$BUILD" MARCH="$MARCH" \
   exit 1
 fi
 
+# --defines must use the = form: its value starts with "-", which argparse
+# would otherwise parse as another flag.
 python3 "$REPO/experiments/ablation/measure.py" \
   --id "$ID" --binary "$BUILD/cmix" --mode "$MODE" \
-  --defines "${DEFINES:-none}" --seed "$SEED" --march "$MARCH" \
+  --defines="${DEFINES:-none}" --seed "$SEED" --march "$MARCH" \
   --repo "$REPO" --out "$RESULTS/$ID.json"
 STATUS=$?
 
