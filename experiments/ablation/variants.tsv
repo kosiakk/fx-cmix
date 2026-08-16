@@ -20,3 +20,5 @@ prep_dict	-	dict	preprocess	Full preprocessing: WRT dictionary plus pretraining
 prep_nopretrain	-DABLATE_PRETRAIN	dict	preprocess	WRT dictionary transform, no pretraining
 prep_none	-	noprep	preprocess	No preprocessing at all
 fxcm_check	-DABLATE_FXCM	nodict	integrity	Duplicate of fxcm on another host; must match byte for byte
+e8_baseline	-	nodict	enwik8	Full enwik8 reference, PGO build on a dedicated VM
+e8_match	-DABLATE_MATCH	nodict	enwik8	Full enwik8: do match models earn bits once their 100 MB history fills?

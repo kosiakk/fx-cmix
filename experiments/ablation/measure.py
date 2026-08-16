@@ -133,6 +133,7 @@ def main():
         "mode": args.mode,
         "seed": int(args.seed),
         "march": args.march,
+        "pgo": os.environ.get("ABLATION_PGO", "0") == "1",
         "host_cpu": open("/proc/cpuinfo").read().split("model name")[1]
                     .split(":")[1].split("\n")[0].strip(),
         "corpora": {},
