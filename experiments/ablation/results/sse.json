@@ -2,10 +2,16 @@
   "corpora": {
     "input": {
       "bits_per_char": 0.985235,
-      "compress_seconds": 30.2,
+      "compress_seconds": 43.9,
       "compressed_bytes": 6164,
-      "decompress_seconds": 29.6,
+      "decompress_seconds": 42.2,
       "original_bytes": 50051
+    },
+    "input2": {
+      "bits_per_char": 1.561023,
+      "compress_seconds": 549.9,
+      "compressed_bytes": 181610,
+      "original_bytes": 930723
     }
   },
   "defines": "-DABLATE_SSE",
@@ -18,8 +24,8 @@
   "march": "x86-64-v3",
   "mode": "nodict",
   "num_models": 490,
-  "peak_rss_kb": 2361888,
-  "quick": true,
+  "peak_rss_kb": 5289228,
+  "quick": false,
   "roundtrip_ok": true,
   "seed": 923
 }
