@@ -15,12 +15,22 @@ import subprocess
 import sys
 import time
 
-# Both corpora are wiki text already in the repo. input2 is a real enwik
-# prefix starting at <mediawiki>; input is a mid-stream fragment.
-CORPORA = [
-    ("input", "prof_input/input"),
-    ("input2", "prof_input/input2"),
-]
+# All wiki text. input2 is a real enwik prefix starting at <mediawiki>; input
+# is a mid-stream fragment. The enwik8 prefixes are fetched by
+# fetch_corpora.sh and are not committed.
+CORPORA = {
+    "input": "prof_input/input",            # 50 KB
+    "input2": "prof_input/input2",          # 930 KB
+    "enwik8_5m": "corpora/enwik8_5m",       # 5 MB
+    "enwik8_10m": "corpora/enwik8_10m",     # 10 MB
+    "enwik8": "corpora/enwik8",             # 100 MB
+}
+DEFAULT_ORDER = ["input", "input2"]
+
+# Round trips are the correctness check, and they cost as much as the
+# compression. Only verify corpora at or below this size; larger runs are
+# measured for size only and record roundtrip_ok as None.
+ROUNDTRIP_MAX_BYTES = 1_000_000
 
 NUM_MODELS_RE = re.compile(rb"num models (\d+)")
 
@@ -91,9 +101,30 @@ def main():
         ap.add_argument("--" + flag, required=True)
     ap.add_argument("--quick", action="store_true",
                     help="only the 50 KB corpus, for smoke-testing the harness")
+    ap.add_argument("--corpora", default="",
+                    help="comma-separated corpus names, smallest first "
+                         "(default: %s)" % ",".join(DEFAULT_ORDER))
     args = ap.parse_args()
 
-    corpora = CORPORA[:1] if args.quick else CORPORA
+    if args.quick:
+        names = DEFAULT_ORDER[:1]
+    elif args.corpora:
+        names = [n.strip() for n in args.corpora.split(",") if n.strip()]
+    else:
+        names = list(DEFAULT_ORDER)
+    unknown = [n for n in names if n not in CORPORA]
+    if unknown:
+        print("unknown corpus name(s): %s; known: %s"
+              % (", ".join(unknown), ", ".join(sorted(CORPORA))), file=sys.stderr)
+        return 2
+    corpora = [(n, CORPORA[n]) for n in names]
+
+    missing = [(n, p) for n, p in corpora
+               if not os.path.exists(os.path.join(args.repo, p))]
+    if missing:
+        print("corpus file(s) not present: %s -- run fetch_corpora.sh"
+              % ", ".join("%s (%s)" % m for m in missing), file=sys.stderr)
+        return 2
 
     workdir = os.path.dirname(os.path.abspath(args.binary))
     result = {
@@ -154,9 +185,9 @@ def main():
             "compress_seconds": round(elapsed, 1),
         }
 
-        # Round trip only the small corpus: it catches a broken ablation for
-        # ~20s instead of doubling the cost of the 930 KB run.
-        if name == "input":
+        # Round trip only small corpora: it catches a broken ablation cheaply
+        # instead of doubling the cost of every large run.
+        if original <= ROUNDTRIP_MAX_BYTES:
             decomp = os.path.join(workdir, name + ".decomp")
             elapsed, rss, rc, out = run(
                 decompress_cmd(args.binary, args.mode, args.repo, comp, decomp),
@@ -173,24 +204,37 @@ def main():
 
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
 
-    # Never let a failed or partial run destroy a better result that already
-    # exists. An OOM-killed run once overwrote a complete baseline with a
-    # one-corpus failure, which silently removed the reference every delta in
-    # the study is measured against.
+    # A variant's result accumulates corpus measurements across runs, so a run
+    # covering only enwik8_5m adds to the existing input/input2 figures instead
+    # of replacing them. This also means a failed or OOM-killed run can never
+    # destroy good data -- which happened once, when an OOM overwrote a complete
+    # baseline and removed the reference every delta is measured against.
     if os.path.exists(args.out):
         try:
             with open(args.out) as f:
                 prev = json.load(f)
         except ValueError:
             prev = None
-        if prev and not prev.get("failed"):
-            prev_c, new_c = set(prev.get("corpora", {})), set(result["corpora"])
-            if result["failed"] or new_c < prev_c:
-                print("[%s] keeping the existing result (%s) rather than "
-                      "overwriting it with %s" % (
-                          args.id, sorted(prev_c),
-                          "a failure" if result["failed"] else sorted(new_c)))
-                return 1
+        if prev:
+            kept = [k for k, v in prev.get("corpora", {}).items()
+                    if k not in result["corpora"]]
+            for k in kept:
+                result["corpora"][k] = prev["corpora"][k]
+            if kept:
+                print("[%s] kept earlier measurements: %s"
+                      % (args.id, ", ".join(sorted(kept))))
+            # Preserve a previously recorded round trip when this run was too
+            # large to verify one.
+            if result["roundtrip_ok"] is None and prev.get("roundtrip_ok") is not None:
+                result["roundtrip_ok"] = prev["roundtrip_ok"]
+            for field in ("exe_bytes", "exe_stripped_bytes", "exe_upx_bytes"):
+                if not result.get(field) and prev.get(field):
+                    result[field] = prev[field]
+
+    # Only a record with no usable measurement at all counts as failed.
+    if result["failed"] and result["corpora"]:
+        result["partial"] = True
+        result["failed"] = False
 
     with open(args.out, "w") as f:
         json.dump(result, f, indent=2, sort_keys=True)

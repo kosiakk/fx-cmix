@@ -25,6 +25,7 @@ ONLY=""
 RESUME=0
 export ABLATION_PUSH=0
 export ABLATION_QUICK=0
+export ABLATION_CORPORA=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -33,6 +34,7 @@ while [ $# -gt 0 ]; do
     --only)    ONLY="$2"; shift 2 ;;
     --push)    export ABLATION_PUSH=1; shift ;;
     --quick)   export ABLATION_QUICK=1; shift ;;
+    --corpora) export ABLATION_CORPORA="$2"; shift 2 ;;
     --resume)  RESUME=1; shift ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
@@ -43,7 +45,7 @@ done
 # container has been restarted mid-matrix -- so resuming must be cheap and must
 # never silently accept a partial result.
 is_done() {
-  python3 - "$HERE/results/$1.json" "$ABLATION_QUICK" <<'PY'
+  python3 - "$HERE/results/$1.json" "$ABLATION_QUICK" "$ABLATION_CORPORA" <<'PY'
 import json, sys
 try:
     d = json.load(open(sys.argv[1]))
@@ -51,7 +53,12 @@ except Exception:
     sys.exit(1)
 if d.get("failed"):
     sys.exit(1)
-need = ["input"] if sys.argv[2] == "1" else ["input", "input2"]
+if sys.argv[2] == "1":
+    need = ["input"]
+elif len(sys.argv) > 3 and sys.argv[3]:
+    need = [c.strip() for c in sys.argv[3].split(",") if c.strip()]
+else:
+    need = ["input", "input2"]
 sys.exit(0 if all(c in d.get("corpora", {}) for c in need) else 1)
 PY
 }

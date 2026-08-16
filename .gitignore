@@ -7,3 +7,4 @@ ppm.temp
 
 # ablation study build trees and binaries
 experiments/ablation/logs/
+experiments/ablation/corpora/

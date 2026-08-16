@@ -72,13 +72,15 @@ fi
 
 QUICK=""
 [ "${ABLATION_QUICK:-0}" = "1" ] && QUICK="--quick"
+CORPORA=""
+[ -n "${ABLATION_CORPORA:-}" ] && CORPORA="--corpora=${ABLATION_CORPORA}"
 
 # --defines must use the = form: its value starts with "-", which argparse
 # would otherwise parse as another flag.
 python3 "$REPO/experiments/ablation/measure.py" \
   --id "$ID" --binary "$BUILD/cmix" --mode "$MODE" \
   --defines="${DEFINES:-none}" --seed "$SEED" --march "$MARCH" \
-  --repo "$REPO" --out "$RESULTS/$ID.json" $QUICK
+  --repo "$REPO" --out "$RESULTS/$ID.json" $QUICK $CORPORA
 STATUS=$?
 
 if [ $STATUS -eq 0 ] && [ "${ABLATION_PUSH:-0}" = "1" ]; then
