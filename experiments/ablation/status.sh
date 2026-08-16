@@ -30,14 +30,16 @@ show() {
     pct=$(echo "$line" | awk '{print $1}')
     outb=$(echo "$line" | awk '{print $2}')
 
-    # Match on the binary path in /proc rather than pgrep: the pattern contains
-    # slashes and pgrep -f was silently matching nothing.
+    # Match argv[0] exactly. pgrep -f matched nothing (the pattern contains
+    # slashes), and a substring match over the whole command line finds
+    # measure.py instead, because it carries --binary <same path> and reports a
+    # 3 MB RSS.
     pid=""
     for p in /proc/[0-9]*; do
       [ -r "$p/cmdline" ] || continue
-      case "$(tr '\0' ' ' < "$p/cmdline" 2>/dev/null)" in
-        *"$BUILD_ROOT/$name/cmix "*) pid=${p#/proc/}; break ;;
-      esac
+      if [ "$(tr '\0' '\n' < "$p/cmdline" 2>/dev/null | head -1)" = "$BUILD_ROOT/$name/cmix" ]; then
+        pid=${p#/proc/}; break
+      fi
     done
     if [ -n "$pid" ]; then
       rss=$(awk '/VmRSS/{printf "%.1f", $2/1048576}' /proc/"$pid"/status 2>/dev/null)
