@@ -2,14 +2,14 @@
   "corpora": {
     "input": {
       "bits_per_char": 0.985075,
-      "compress_seconds": 33.1,
+      "compress_seconds": 26.2,
       "compressed_bytes": 6163,
-      "decompress_seconds": 29.6,
+      "decompress_seconds": 22.3,
       "original_bytes": 50051
     },
     "input2": {
       "bits_per_char": 1.561152,
-      "compress_seconds": 527.6,
+      "compress_seconds": 401.5,
       "compressed_bytes": 181625,
       "original_bytes": 930723
     }
