@@ -1,0 +1,33 @@
+{
+  "corpora": {
+    "input": {
+      "bits_per_char": 0.764181,
+      "compress_seconds": 16.0,
+      "compressed_bytes": 4781,
+      "decompress_seconds": 16.4,
+      "original_bytes": 50051
+    },
+    "input2": {
+      "bits_per_char": 1.371691,
+      "compress_seconds": 63.9,
+      "compressed_bytes": 159583,
+      "decompress_seconds": 66.9,
+      "original_bytes": 930723
+    }
+  },
+  "defines": "-DABLATE_PPMD",
+  "exe_bytes": 259352,
+  "exe_stripped_bytes": 220200,
+  "exe_upx_bytes": 98788,
+  "failed": false,
+  "host_cpu": "Intel(R) Xeon(R) Platinum 8481C CPU @ 2.70GHz",
+  "id": "ppmd",
+  "march": "native",
+  "mode": "dict",
+  "num_models": 488,
+  "peak_rss_kb": 5795104,
+  "pgo": true,
+  "quick": false,
+  "roundtrip_ok": true,
+  "seed": 923
+}

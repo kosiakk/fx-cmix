@@ -1,17 +1,17 @@
 {
   "corpora": {
     "input": {
-      "bits_per_char": 0.983797,
-      "compress_seconds": 14.0,
-      "compressed_bytes": 6155,
-      "decompress_seconds": 14.7,
+      "bits_per_char": 0.763701,
+      "compress_seconds": 21.9,
+      "compressed_bytes": 4778,
+      "decompress_seconds": 22.2,
       "original_bytes": 50051
     },
     "input2": {
-      "bits_per_char": 1.559166,
-      "compress_seconds": 233.3,
-      "compressed_bytes": 181394,
-      "decompress_seconds": 216.5,
+      "bits_per_char": 1.362124,
+      "compress_seconds": 159.4,
+      "compressed_bytes": 158470,
+      "decompress_seconds": 157.4,
       "original_bytes": 930723
     }
   },
@@ -21,11 +21,11 @@
   "exe_upx_bytes": 131112,
   "failed": false,
   "host_cpu": "Intel(R) Xeon(R) Platinum 8481C CPU @ 2.70GHz",
-  "id": "prep_none",
+  "id": "baseline",
   "march": "native",
-  "mode": "noprep",
+  "mode": "dict",
   "num_models": 490,
-  "peak_rss_kb": 5728152,
+  "peak_rss_kb": 5836760,
   "pgo": true,
   "quick": false,
   "roundtrip_ok": true,

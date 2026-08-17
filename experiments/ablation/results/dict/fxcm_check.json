@@ -1,0 +1,33 @@
+{
+  "corpora": {
+    "input": {
+      "bits_per_char": 0.860402,
+      "compress_seconds": 7.7,
+      "compressed_bytes": 5383,
+      "decompress_seconds": 7.2,
+      "original_bytes": 50051
+    },
+    "input2": {
+      "bits_per_char": 1.438495,
+      "compress_seconds": 88.2,
+      "compressed_bytes": 167355,
+      "decompress_seconds": 84.5,
+      "original_bytes": 930723
+    }
+  },
+  "defines": "-DABLATE_FXCM",
+  "exe_bytes": 269184,
+  "exe_stripped_bytes": 232472,
+  "exe_upx_bytes": 101508,
+  "failed": false,
+  "host_cpu": "Intel(R) Xeon(R) Platinum 8481C CPU @ 2.70GHz",
+  "id": "fxcm_check",
+  "march": "native",
+  "mode": "dict",
+  "num_models": 51,
+  "peak_rss_kb": 1632204,
+  "pgo": true,
+  "quick": false,
+  "roundtrip_ok": true,
+  "seed": 923
+}

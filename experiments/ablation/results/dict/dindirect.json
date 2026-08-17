@@ -1,0 +1,33 @@
+{
+  "corpora": {
+    "input": {
+      "bits_per_char": 0.76482,
+      "compress_seconds": 21.5,
+      "compressed_bytes": 4785,
+      "decompress_seconds": 20.9,
+      "original_bytes": 50051
+    },
+    "input2": {
+      "bits_per_char": 1.361943,
+      "compress_seconds": 162.9,
+      "compressed_bytes": 158449,
+      "decompress_seconds": 151.0,
+      "original_bytes": 930723
+    }
+  },
+  "defines": "-DABLATE_DOUBLE_INDIRECT",
+  "exe_bytes": 322352,
+  "exe_stripped_bytes": 281656,
+  "exe_upx_bytes": 129256,
+  "failed": false,
+  "host_cpu": "Intel(R) Xeon(R) Platinum 8481C CPU @ 2.70GHz",
+  "id": "dindirect",
+  "march": "native",
+  "mode": "dict",
+  "num_models": 479,
+  "peak_rss_kb": 5174752,
+  "pgo": true,
+  "quick": false,
+  "roundtrip_ok": true,
+  "seed": 923
+}

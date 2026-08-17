@@ -1,0 +1,33 @@
+{
+  "corpora": {
+    "input": {
+      "bits_per_char": 0.763701,
+      "compress_seconds": 21.7,
+      "compressed_bytes": 4778,
+      "decompress_seconds": 22.1,
+      "original_bytes": 50051
+    },
+    "input2": {
+      "bits_per_char": 1.363052,
+      "compress_seconds": 156.3,
+      "compressed_bytes": 158578,
+      "decompress_seconds": 160.8,
+      "original_bytes": 930723
+    }
+  },
+  "defines": "-DABLATE_MIXER_DECAY",
+  "exe_bytes": 331496,
+  "exe_stripped_bytes": 289848,
+  "exe_upx_bytes": 131032,
+  "failed": false,
+  "host_cpu": "Intel(R) Xeon(R) Platinum 8481C CPU @ 2.70GHz",
+  "id": "mixdecay",
+  "march": "native",
+  "mode": "dict",
+  "num_models": 490,
+  "peak_rss_kb": 5836884,
+  "pgo": true,
+  "quick": false,
+  "roundtrip_ok": true,
+  "seed": 923
+}

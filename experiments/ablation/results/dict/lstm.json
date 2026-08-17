@@ -1,0 +1,33 @@
+{
+  "corpora": {
+    "input": {
+      "bits_per_char": 0.762422,
+      "compress_seconds": 16.1,
+      "compressed_bytes": 4770,
+      "decompress_seconds": 16.5,
+      "original_bytes": 50051
+    },
+    "input2": {
+      "bits_per_char": 1.369791,
+      "compress_seconds": 68.6,
+      "compressed_bytes": 159362,
+      "decompress_seconds": 69.7,
+      "original_bytes": 930723
+    }
+  },
+  "defines": "-DABLATE_LSTM",
+  "exe_bytes": 285400,
+  "exe_stripped_bytes": 244776,
+  "exe_upx_bytes": 111304,
+  "failed": false,
+  "host_cpu": "Intel(R) Xeon(R) Platinum 8481C CPU @ 2.70GHz",
+  "id": "lstm",
+  "march": "native",
+  "mode": "dict",
+  "num_models": 489,
+  "peak_rss_kb": 5806168,
+  "pgo": true,
+  "quick": false,
+  "roundtrip_ok": true,
+  "seed": 923
+}

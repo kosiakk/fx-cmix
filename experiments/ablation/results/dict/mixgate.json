@@ -1,0 +1,33 @@
+{
+  "corpora": {
+    "input": {
+      "bits_per_char": 0.762902,
+      "compress_seconds": 20.7,
+      "compressed_bytes": 4773,
+      "decompress_seconds": 20.2,
+      "original_bytes": 50051
+    },
+    "input2": {
+      "bits_per_char": 1.36943,
+      "compress_seconds": 138.4,
+      "compressed_bytes": 159320,
+      "decompress_seconds": 129.5,
+      "original_bytes": 930723
+    }
+  },
+  "defines": "-DABLATE_MIXER_GATING",
+  "exe_bytes": 332136,
+  "exe_stripped_bytes": 289848,
+  "exe_upx_bytes": 130328,
+  "failed": false,
+  "host_cpu": "Intel(R) Xeon(R) Platinum 8481C CPU @ 2.70GHz",
+  "id": "mixgate",
+  "march": "native",
+  "mode": "dict",
+  "num_models": 490,
+  "peak_rss_kb": 5562936,
+  "pgo": true,
+  "quick": false,
+  "roundtrip_ok": true,
+  "seed": 923
+}
