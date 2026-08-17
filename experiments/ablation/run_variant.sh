@@ -19,8 +19,15 @@ MODE="$3"
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BUILD_ROOT="${ABLATION_BUILD_ROOT:-/tmp/fx-cmix-ablation}"
-BUILD="$BUILD_ROOT/$ID"
-RESULTS="$REPO/experiments/ablation/results"
+# Keyed by mode as well: mode is a runtime flag, not a compile flag, so the
+# binary would be identical -- but the two runs write enwik8.comp and
+# progress.log into the same directory and would clobber each other.
+BUILD="$BUILD_ROOT/$MODE/$ID"
+# Results are keyed by mode: the dictionary is an ablation axis in its own
+# right, not a setting to choose once. The same mechanism can earn a
+# different amount depending on whether WRT already removed the redundancy
+# it exploits, and that interaction is a result.
+RESULTS="$REPO/experiments/ablation/results/$MODE"
 SEED="${SEED:-923}"
 UPDATE_LIMIT="${UPDATE_LIMIT:-3000}"
 MARCH="${MARCH:-x86-64-v3}"
@@ -33,13 +40,13 @@ esac
 
 [ "$DEFINES" = "-" ] && DEFINES=""
 
-mkdir -p "$RESULTS" "$BUILD_ROOT"
+mkdir -p "$RESULTS" "$BUILD_ROOT" "$BUILD_ROOT/$MODE"
 
 # Take a lock before touching the build tree. Containers here get reclaimed
 # without warning, so a stalled shard has to be safe to restart at any moment;
 # without this, a restart would rm -rf a build tree that a live run is still
 # using. mkdir is atomic, so it works as the lock.
-LOCK="$BUILD_ROOT/$ID.lock"
+LOCK="$BUILD_ROOT/$MODE-$ID.lock"
 if ! mkdir "$LOCK" 2>/dev/null; then
   # Reclaim the lock if the process that held it is gone.
   OWNER=$(cat "$LOCK/pid" 2>/dev/null || echo "")

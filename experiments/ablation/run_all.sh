@@ -50,7 +50,7 @@ done
 # container has been restarted mid-matrix -- so resuming must be cheap and must
 # never silently accept a partial result.
 is_done() {
-  python3 - "$HERE/results/$1.json" "$ABLATION_QUICK" "$ABLATION_CORPORA" <<'PY'
+  python3 - "$HERE/results/$2/$1.json" "$ABLATION_QUICK" "$ABLATION_CORPORA" <<'PY'
 import json, sys
 try:
     d = json.load(open(sys.argv[1]))
@@ -69,6 +69,7 @@ PY
 }
 
 mkdir -p "$HERE/results" "$HERE/logs"
+for m in dict nodict noprep; do mkdir -p "$HERE/results/$m"; done
 
 # One runner per machine. --workers bounds concurrency within a runner, so two
 # overlapping runners silently double it -- which on this box meant 4 concurrent
@@ -115,7 +116,7 @@ FAILED=()
 running=0
 for row in "${SELECTED[@]}"; do
   IFS=$'\t' read -r id defines mode group desc <<< "$row"
-  if [ $RESUME -eq 1 ] && is_done "$id"; then
+  if [ $RESUME -eq 1 ] && is_done "$id" "$mode"; then
     echo "[$id] already done, skipping"
     continue
   fi
@@ -142,7 +143,7 @@ if [ -s "$HERE/logs/failures" ]; then
   if [ "$nfail" -ge "${#SELECTED[@]}" ]; then
     echo "every selected variant failed -- not a completed shard" >&2
     echo "results in $HERE/results:"
-    ls -1 "$HERE/results" 2>/dev/null | sed 's/^/  /'
+    find "$HERE/results" -name '*.json' 2>/dev/null | sed 's/^/  /'
     exit 5
   fi
 fi

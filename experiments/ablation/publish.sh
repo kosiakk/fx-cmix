@@ -8,7 +8,7 @@ set -uo pipefail
 
 ID="$1"
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-FILE="experiments/ablation/results/$ID.json"
+FILE="$(cd "$REPO" && find experiments/ablation/results -name "$ID.json" | head -1)"
 
 cd "$REPO" || exit 1
 

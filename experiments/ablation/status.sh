@@ -16,13 +16,13 @@ INTERVAL="${2:-60}"
 [ "${1:-}" = "-w" ] && WATCH=1
 
 show() {
-  printf "%-14s %7s %10s %9s %8s %9s %s\n" \
-    VARIANT PCT OUT_MB BPC_EST ELAPSED ETA RSS_GB
+  printf "%-22s %7s %10s %9s %8s %9s %s\n" \
+    MODE/VARIANT PCT OUT_MB BPC_EST ELAPSED ETA RSS_GB
   local any=0
-  for d in "$BUILD_ROOT"/*/; do
+  for d in "$BUILD_ROOT"/*/*/; do
     [ -d "$d" ] || continue
     local name pct outb line pid rss el
-    name=$(basename "$d")
+    name="$(basename "$(dirname "$d")")/$(basename "$d")"
     case "$name" in *.lock) continue ;; esac
     line=$(tail -c 4000 "$d/progress.log" 2>/dev/null | tr '\r' '\n' | grep -E '^[0-9]' | tail -1)
     [ -n "$line" ] || continue
@@ -54,7 +54,7 @@ show() {
       mb = o/1048576
       bpc = (p > 0) ? (o/(p/100)) * 8 / 100000000 : 0
       eta = (p > 0 && e > 0) ? (e/(p/100) - e)/3600 : 0
-      printf "%-14s %6.2f%% %9.1f %9.4f %7.1fh %8.1fh %6.1f\n", n, p, mb, bpc, e/3600, eta, r
+      printf "%-22s %6.2f%% %9.1f %9.4f %7.1fh %8.1fh %6.1f\n", n, p, mb, bpc, e/3600, eta, r
     }'
   done
   [ "$any" = "1" ] || echo "(no variants with progress under $BUILD_ROOT)"

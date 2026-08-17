@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-"""Turn experiments/ablation/results/*.json into the master results table.
+"""Turn experiments/ablation/results/<mode>/*.json into the results tables.
 
-Prints markdown to stdout. Deltas are against the `baseline` variant; the
-noise floor is the spread of the seed replicates, and any delta smaller than
-it is marked as below noise rather than reported as an effect.
+The dictionary is an ablation axis, not a setting chosen once: the same
+mechanism can earn a different amount depending on whether the WRT transform
+already removed the redundancy it exploits. Each preprocessing mode is
+therefore its own arm, with its own baseline and its own noise floor, and rows
+from the non-dictionary arm are suffixed `-no-dict` so a single table can carry
+both without the deltas being silently cross-compared.
 """
 
 import glob
@@ -12,30 +15,44 @@ import os
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-REPO = os.path.dirname(os.path.dirname(HERE))
 
 GROUP_ORDER = ["baseline", "noise", "ensemble", "mixing", "preprocess", "integrity"]
+SUFFIX = {"dict": "", "nodict": "-no-dict", "noprep": "-no-prep"}
 
 
-def load():
+def load(mode=None):
     out = {}
-    for path in sorted(glob.glob(os.path.join(HERE, "results", "*.json"))):
-        with open(path) as f:
-            r = json.load(f)
+    for path in sorted(glob.glob(os.path.join(HERE, "results", mode or "*", "*.json"))):
+        try:
+            with open(path) as f:
+                r = json.load(f)
+        except ValueError:
+            continue
+        if mode and r.get("mode") != mode:
+            continue
         out[r["id"]] = r
     return out
 
 
+def modes_present():
+    found = set()
+    for path in glob.glob(os.path.join(HERE, "results", "*", "*.json")):
+        try:
+            found.add(json.load(open(path)).get("mode", "?"))
+        except ValueError:
+            pass
+    return [m for m in ("dict", "nodict", "noprep") if m in found]
+
+
 def meta():
-    """id -> (group, description) from variants.tsv."""
     info = {}
     with open(os.path.join(HERE, "variants.tsv")) as f:
         next(f)
         for line in f:
             if not line.strip():
                 continue
-            parts = line.rstrip("\n").split("\t")
-            info[parts[0]] = (parts[3], parts[4])
+            p = line.rstrip("\n").split("\t")
+            info[p[0]] = (p[3], p[4])
     return info
 
 
@@ -49,165 +66,175 @@ def fmt(v, places=4):
 
 
 def signed(v):
-    if v is None:
-        return "-"
-    return ("+%.4f" if v >= 0 else "%.4f") % v
+    return "-" if v is None else (("+%.4f" if v >= 0 else "%.4f") % v)
 
 
-def break_even(results, base):
-    """At what corpus size does each mechanism pay back its own binary cost?
+def noise_floor(results, corpus):
+    seeds = [bpc(results[i], corpus) for i in ("baseline", "seed1", "seed7919")
+             if i in results and bpc(results[i], corpus) is not None]
+    return (max(seeds) - min(seeds)) if len(seeds) > 1 else None
 
-    The Hutter Prize scores S = S1 (executable) + S2 (archive). Keeping a
-    mechanism costs E = exe_upx(full) - exe_upx(ablated) bytes of executable,
-    and saves d = delta bits/char on every byte of input. So it breaks even at
-    N = E / (d/8) bytes of corpus. Below that size the mechanism is dead weight;
-    above it, it pays.
 
-    Measured on ~1 MB, so d for long-range mechanisms is understated and these
-    figures are pessimistic for them. Treat as an order of magnitude.
+def table(info):
+    """One table across all arms; non-dictionary rows carry a -no-dict suffix."""
+    print("| Variant | Group | Models | input 0.05 MB | Δ | input2 0.93 MB | Δ "
+          "| UPX exe | Δ exe | Verdict |")
+    print("| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |")
+
+    floors = {}
+    for mode in modes_present():
+        results = load(mode)
+        base = results.get("baseline")
+        # Every delta is against the baseline of its own arm. Comparing across
+        # arms would fold the dictionary's own effect into every mechanism.
+        b1 = bpc(base, "input") if base else None
+        b2 = bpc(base, "input2") if base else None
+        floor_corpus = "input2" if b2 is not None else "input"
+        floor = noise_floor(results, floor_corpus)
+        floors[mode] = (floor, floor_corpus)
+        sfx = SUFFIX[mode]
+
+        rows = sorted(results.values(), key=lambda r: (
+            GROUP_ORDER.index(info.get(r["id"], ("integrity",))[0])
+            if info.get(r["id"], ("integrity",))[0] in GROUP_ORDER else 99,
+            -(bpc(r, "input2") or bpc(r, "input") or 0)))
+
+        for r in rows:
+            group = info.get(r["id"], ("?", ""))[0]
+            v1, v2 = bpc(r, "input"), bpc(r, "input2")
+            d1 = None if (v1 is None or b1 is None) else v1 - b1
+            d2 = None if (v2 is None or b2 is None) else v2 - b2
+            dprim = d2 if d2 is not None else d1
+
+            if r.get("failed"):
+                verdict = "**FAILED**"
+            elif r["id"] == "baseline":
+                verdict = "reference"
+            elif dprim is None:
+                verdict = "-"
+            elif floor is not None and round(abs(dprim), 4) <= round(floor, 4):
+                verdict = "below noise"
+            elif dprim < 0:
+                verdict = "**improves**"
+            else:
+                verdict = "costs bits"
+
+            upx = r.get("exe_upx_bytes")
+            bupx = base.get("exe_upx_bytes") if base else None
+            dupx = None if (upx is None or bupx is None) else upx - bupx
+
+            print("| `%s%s` | %s | %s | %s | %s | %s | %s | %s | %s | %s |" % (
+                r["id"], sfx, group, r.get("num_models") or "-",
+                fmt(v1), signed(d1), fmt(v2), signed(d2),
+                upx or "-", "-" if dupx is None else "%+d" % dupx, verdict))
+
+    print()
+    for mode, (floor, corpus) in floors.items():
+        if floor is not None:
+            print("Noise floor, `%s` arm (seed spread on `%s`): **%.4f bits/char**.  "
+                  % (mode, corpus, floor))
+
+
+def break_even(corpus="input2"):
+    """Corpus size at which a mechanism's savings overtake its own code cost.
+
+    S = S1 (executable) + S2 (archive), so a mechanism costing E bytes of
+    binary and saving d bits/char breaks even at N = E / (d/8) bytes.
     """
-    base_upx = base.get("exe_upx_bytes")
-    corpus = "input2" if bpc(base, "input2") is not None else "input"
-    base_bpc = bpc(base, corpus)
-    if not base_upx or base_bpc is None:
-        return "Break-even sizes need the baseline's exe size and a corpus result."
+    results = load("dict") or load("nodict")
+    base = results.get("baseline")
+    if not base or not base.get("exe_upx_bytes"):
+        return ""
+    c = corpus if bpc(base, corpus) is not None else "input"
+    bb = bpc(base, c)
+    if bb is None:
+        return ""
 
     rows = []
     for r in results.values():
         if r["id"] == "baseline" or r.get("failed"):
             continue
-        upx, b2 = r.get("exe_upx_bytes"), bpc(r, corpus)
-        if not upx or b2 is None:
+        upx, v = r.get("exe_upx_bytes"), bpc(r, c)
+        if not upx or v is None:
             continue
-        exe_cost = base_upx - upx          # bytes of binary the mechanism costs
-        d = b2 - base_bpc                  # bits/char the mechanism saves
-        if exe_cost <= 0 or d <= 0:
-            continue
-        rows.append((exe_cost / (d / 8.0), r["id"], exe_cost, d))
-
+        cost, d = base["exe_upx_bytes"] - upx, v - bb
+        if cost > 0 and d > 0:
+            rows.append((cost / (d / 8.0), r["id"], cost, d))
     if not rows:
-        return "No mechanism has both a positive binary cost and a positive saving yet."
+        return ""
 
     rows.sort()
-    out = ["### Break-even corpus size",
-           "",
-           "_Savings measured on `%s`._" % corpus,
-           "",
-           "How much input a mechanism must see before the bytes it saves "
-           "exceed the bytes its code costs in the packed executable.",
-           "",
+    out = ["", "### Break-even corpus size", "",
+           "_Savings measured on `%s`, dictionary arm._" % c, "",
            "| Mechanism | Exe cost (B) | Saves (bits/char) | Breaks even at |",
            "| --- | ---: | ---: | ---: |"]
     for n, vid, cost, d in rows:
-        size = ("%.1f KB" % (n / 1e3)) if n < 1e6 else ("%.1f MB" % (n / 1e6))
+        size = "%.1f KB" % (n / 1e3) if n < 1e6 else "%.1f MB" % (n / 1e6)
         out.append("| `%s` | %d | %.4f | %s |" % (vid, cost, d, size))
     out.append("")
     out.append("enwik9 is 1 000 MB, so anything breaking even well below that "
-               "earns its place; anything near or above it is a candidate for "
-               "removal on a size-scored benchmark.")
+               "earns its place.")
+    return "\n".join(out)
+
+
+def interaction(corpus="input2"):
+    """Does a mechanism earn more or less once the dictionary is applied?
+
+    WRT rewrites words as 1-3 byte codes and permutes the byte alphabet, so a
+    mechanism exploiting word or markup redundancy may find it already gone --
+    or concentrated into a form it reads better. The sign differs by mechanism,
+    which is the reason both arms are run.
+    """
+    a, b = load("dict"), load("nodict")
+    if "baseline" not in a or "baseline" not in b:
+        return ""
+    ba, bb = bpc(a["baseline"], corpus), bpc(b["baseline"], corpus)
+    if ba is None or bb is None:
+        return ""
+
+    rows = []
+    for vid in sorted(set(a) & set(b)):
+        if vid == "baseline" or vid.startswith("seed"):
+            continue
+        va, vb = bpc(a[vid], corpus), bpc(b[vid], corpus)
+        if va is None or vb is None:
+            continue
+        rows.append((abs((va - ba) - (vb - bb)), vid, va - ba, vb - bb))
+    if not rows:
+        return ""
+
+    rows.sort(reverse=True)
+    out = ["", "### Dictionary interaction (`%s`)" % corpus, "",
+           "What each mechanism costs when removed, measured separately in "
+           "both arms. A large shift means the mechanism and the dictionary "
+           "compete for the same redundancy.", "",
+           "| Mechanism | Δ with dict | Δ without dict | Shift |",
+           "| --- | ---: | ---: | ---: |"]
+    for _, vid, da, db in rows:
+        out.append("| `%s` | %s | %s | %s |"
+                   % (vid, signed(da), signed(db), signed(da - db)))
+    out.append("")
+    out.append("A delta that shrinks under the dictionary means the mechanism "
+               "was partly doing the dictionary's job; one that grows means it "
+               "reads the coded stream better than raw text.")
+    out.append("")
+    out.append("_Caveat: the two arms were not built identically. The "
+               "no-dictionary arm is non-PGO `-march=x86-64-v3`, the "
+               "dictionary arm is PGO `-march=native`. That difference "
+               "measures 0.0001-0.0002 bits/char, below both arms' noise "
+               "floors, so it does not affect the ranking -- but do not read "
+               "shifts of that size as real._")
     return "\n".join(out)
 
 
 def main():
-    results = load()
-    info = meta()
-
-    if "baseline" not in results:
-        print("no baseline result yet; nothing to compare against",
-              file=sys.stderr)
+    if not modes_present():
+        print("no results yet", file=sys.stderr)
         return 1
-    base = results["baseline"]
-
-    # Noise floor: how far the seed replicates move the number when nothing
-    # about the model has changed. Falls back to the small corpus while the
-    # full pass is still running.
-    noise_corpus = "input2" if bpc(base, "input2") is not None else "input"
-    seeds = [bpc(results[i], noise_corpus)
-             for i in ("baseline", "seed1", "seed7919")
-             if i in results and bpc(results[i], noise_corpus) is not None]
-    noise = (max(seeds) - min(seeds)) if len(seeds) > 1 else None
-
-    print("| Variant | Group | Models | input 0.05 MB | Δ | input2 0.93 MB | Δ | UPX exe | Δ exe | Verdict |")
-    print("| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |")
-
-    rows = sorted(results.values(), key=lambda r: (
-        GROUP_ORDER.index(info.get(r["id"], ("integrity",))[0])
-        if info.get(r["id"], ("integrity",))[0] in GROUP_ORDER else 99,
-        -(bpc(r, "input2") or 0)))
-
-    # The baseline may not cover both corpora yet (a --quick pass covers only
-    # the small one), so a delta is only defined where both sides exist.
-    base1, base2 = bpc(base, "input"), bpc(base, "input2")
-
-    for r in rows:
-        group, _ = info.get(r["id"], ("?", ""))
-        b1, b2 = bpc(r, "input"), bpc(r, "input2")
-        d1 = None if (b1 is None or base1 is None) else b1 - base1
-        d2 = None if (b2 is None or base2 is None) else b2 - base2
-
-        # Judge on the largest corpus this variant actually has, so the table
-        # stays meaningful while the full pass is still filling in.
-        dprim = d2 if d2 is not None else d1
-
-        if r.get("failed"):
-            verdict = "**FAILED** " + r.get("error", "")[:60]
-        elif r["id"] == "baseline":
-            verdict = "reference"
-        elif dprim is None:
-            verdict = "-"
-        elif noise is not None and round(abs(dprim), 4) <= round(noise, 4):
-            # Rounded, or a delta sitting exactly on the floor is classified by
-            # floating-point dust rather than by the measurement.
-            verdict = "below noise"
-        elif dprim < 0:
-            verdict = "**improves**"
-        else:
-            verdict = "costs bits"
-
-        upx = r.get("exe_upx_bytes")
-        dupx = None if (upx is None or base.get("exe_upx_bytes") is None) \
-            else upx - base["exe_upx_bytes"]
-
-        print("| `%s` | %s | %s | %s | %s | %s | %s | %s | %s | %s |" % (
-            r["id"], group, r.get("num_models") or "-",
-            fmt(b1), signed(d1), fmt(b2), signed(d2),
-            upx if upx else "-",
-            "-" if dupx is None else ("%+d" % dupx), verdict))
-
-    print()
-    print(break_even(results, base))
-    print()
-    if noise is not None:
-        print("Noise floor (seed replicate spread on `%s`): **%.4f bits/char**."
-              % (noise_corpus, noise))
-    fails = [r["id"] for r in results.values() if r.get("failed")]
-    if fails:
-        print("\nFailed variants: " + ", ".join(sorted(fails)))
-    rt = [r["id"] for r in results.values() if r.get("roundtrip_ok") is False]
-    if rt:
-        print("Round-trip failures: " + ", ".join(sorted(rt)))
-
-    hosts = sorted({r.get("host_cpu", "?") for r in results.values()})
-    print("\nHosts: " + "; ".join(hosts))
-
-    if "fxcm" in results and "fxcm_check" in results:
-        for c in ("input2", "input"):
-            a, b = bpc(results["fxcm"], c), bpc(results["fxcm_check"], c)
-            if a is None or b is None:
-                continue
-            ha = results["fxcm"].get("host_cpu")
-            hb = results["fxcm_check"].get("host_cpu")
-            print("\nIntegrity check on `%s`: fxcm %s vs fxcm_check %s -- %s"
-                  % (c, fmt(a), fmt(b),
-                     "identical" if a == b
-                     else "**MISMATCH, do not pool results**"))
-            print("Built on %s and %s." % (ha, hb)
-                  + ("" if ha != hb else
-                     " Same host, so this checks determinism rather than"
-                     " cross-host reproducibility."))
-            break
-        else:
-            print("\nIntegrity check: pending, no corpus covered by both yet.")
+    table(meta())
+    for section in (break_even(), interaction()):
+        if section:
+            print(section)
     return 0
 
 

@@ -19,3 +19,4 @@ lstmover	-DABLATE_LSTM_OVERRIDE	dict	mixing	Remove the LSTM hard-bypass on satur
 prep_nopretrain	-DABLATE_PRETRAIN	dict	preprocess	WRT dictionary transform, no pretraining
 prep_none	-	noprep	preprocess	No preprocessing at all
 fxcm_check	-DABLATE_FXCM	dict	integrity	Duplicate of fxcm on another host; must match byte for byte
+prep_dict	-	dict	integrity	Dict baseline measured on the old container build; cross-checks build config
