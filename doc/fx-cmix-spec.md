@@ -152,11 +152,43 @@ Of the transform's 3.2515:
 - **having it in frequency order: 1.1724 (36%)**
 
 Ordering alone is worth **17.7% of the whole compression budget** and about
-**15× the largest single model ablation**. Caveat: random shuffling is the
+**15× the largest single model ablation**. Note that random shuffling is the
 worst case, not a neutral one — it anti-correlates code length with frequency.
-The honest bracket is "hand-curated order" against "no ordering information",
-not against a plausible alternative such as corpus-frequency sorting. That
-comparison is **not yet run**.
+
+### 3.1a Naive frequency sorting beats the hand-curated order
+
+Same 44 515 words, reordered by their count in enwik8 (`rank_dict.py`,
+counting maximal `[A-Za-z]` runs lowercased). `input2` is **not** a prefix of
+enwik8, so the counts are from held-out text.
+
+| Word list | bytes out | bits/char | vs shipped |
+| --- | ---: | ---: | ---: |
+| none | 930 767 | 8.0004 | +3.2518 |
+| shuffled | 688 847 | 5.9210 | +1.1724 |
+| savings-sorted | 557 607 | 4.7929 | +0.0444 |
+| shipped (hand-curated) | 552 447 | 4.7485 | reference |
+| **frequency-sorted** | **547 482** | **4.7059** | **−0.0427** |
+
+−0.0427 bits/char is **142× the noise floor** and larger than every single
+model ablation except `fxcm` — bigger than removing PPM, the LSTM, or mixer
+gating. It comes from sorting word counts.
+
+Two things qualify it:
+
+- **The shipped list is not frequency-ordered at all.** Its one-byte tier
+  begins `will would can may it there he they`; frequency order begins
+  `the of and in a to is s`. That is a different objective, not a near miss.
+  A plausible explanation is that the shipped order was tuned against the
+  **phda9-preprocessed** stream used by the real `-e` pipeline, where frequent
+  function words may already be handled upstream — in which case testing on
+  raw text through `-c` flatters frequency sorting. **Unverified, and it
+  should be checked before acting on this result.**
+- **Weighting by bytes saved is worse, not better.** Ranking by
+  `count × (len − code_len)` scored +0.0444, behind plain frequency. It places
+  36.7% of covered occurrences in the one-byte tier against frequency's 40.9%,
+  trading many short frequent words for fewer long ones. The arithmetic favours
+  it; the measurement does not. Relevant because that is the intuition a
+  tokenizer objective would naturally encode.
 
 ### 3.2 Leave-one-out deltas do not sum to the total, and cannot
 
@@ -235,17 +267,20 @@ the LSTM at 1/25th the code. Context gating is the best ratio in the ensemble.
 
 ## 5. Open questions
 
-1. **Does hand curation beat naive frequency sorting?** Sorting the same
-   44 515 words by their enwik8 frequency and re-running the null build would
-   answer it in ~2 minutes. Not yet run. (`doc/fx2-cmix.md` open question #3.)
+1. ~~Does hand curation beat naive frequency sorting?~~ **Answered: no.**
+   Frequency sorting wins by 0.0427 bits/char (§3.1a). Follow-up: does that
+   hold on the phda9-preprocessed stream the real pipeline uses? The shipped
+   order looks tuned for that, not for raw text.
 2. **Do `match` and `bracket` earn anything at scale?** Both sit at noise on
    930 KB, where the match models' 100 MB history is ~1% full. enwik8 dict
    runs are in flight.
 3. **How do mechanisms scale?** Points at 50 KB, 930 KB and 100 MB exist or
    are pending; enwik9 would give a fourth across four orders of magnitude.
 4. **Can a tokenizer-derived vocabulary beat the shipped list?** Testable in
-   ~90 s per candidate against the null build's 4.7485 / 5.9210 / 8.0004
-   reference points, with no modelling confound. Constraint in §2.2; cost
-   target in §2.3.
+   ~90 s per candidate with no modelling confound:
+   `ABLATION_DICT=<list> ./run_variant.sh null_<name> "$NULLFLAGS" dict`.
+   Reference ladder: 8.0004 (none) → 5.9210 (shuffled) → 4.7485 (shipped) →
+   **4.7059 (frequency-sorted)**, which is the bar to beat. Constraint in
+   §2.2; cost target in §2.3.
 5. **What is the exact split of the 6.64 bits?** Needs leave-one-in or Shapley
    (§3.2). Leave-one-in variants are defined but not yet run.
