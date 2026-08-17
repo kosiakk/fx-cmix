@@ -38,8 +38,8 @@ rm -f "$RC_FILE"
 
   # PGO plus -march=native: this is the fastest build, and every variant in
   # this comparison is built the same way, which is what actually matters.
-  ABLATION_PGO=1 MARCH=native \
-    ./run_all.sh --only "$VARIANTS" --corpora enwik8 --workers "$WORKERS" --resume
+  MARCH=native \
+    ./run_all.sh --only "$VARIANTS" --corpora enwik8 --workers "$WORKERS" --resume --pgo
   RC=$?
   echo "$RC" > "$RC_FILE"
   echo "=== $(date -u +%FT%TZ) run_all exited rc=$RC ==="

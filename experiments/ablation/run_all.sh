@@ -23,10 +23,13 @@ SHARD_N=1
 WORKERS=3
 ONLY=""
 RESUME=0
-export ABLATION_PUSH=0
-export ABLATION_QUICK=0
-export ABLATION_CORPORA=""
-export ABLATION_PGO=0
+# Defaults, but never clobber what the caller already exported -- the shard
+# runner passes ABLATION_PGO=1 in the environment, and an unconditional
+# assignment here silently turned PGO off for a fleet of multi-hour runs.
+export ABLATION_PUSH="${ABLATION_PUSH:-0}"
+export ABLATION_QUICK="${ABLATION_QUICK:-0}"
+export ABLATION_CORPORA="${ABLATION_CORPORA:-}"
+export ABLATION_PGO="${ABLATION_PGO:-0}"
 
 while [ $# -gt 0 ]; do
   case "$1" in
