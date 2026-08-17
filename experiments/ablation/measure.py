@@ -94,9 +94,17 @@ def exe_sizes(binary):
         return plain, None, None
 
 
+def dict_path(repo):
+    """Which word list to use. ABLATION_DICT overrides the shipped one, which
+    is how the value of the dictionary's *ordering* gets measured: code length
+    is assigned by line position (0-79 one byte, 80-3919 two, the rest three),
+    so a reordered list is the same vocabulary with different code lengths."""
+    return os.environ.get("ABLATION_DICT") or os.path.join(repo, "dictionary/english.dic")
+
+
 def compress_cmd(binary, mode, repo, src, dst):
     if mode == "dict":
-        return [binary, "-c", os.path.join(repo, "dictionary/english.dic"), src, dst]
+        return [binary, "-c", dict_path(repo), src, dst]
     if mode == "noprep":
         return [binary, "-n", src, dst]
     return [binary, "-c", src, dst]
@@ -107,7 +115,7 @@ def decompress_cmd(binary, mode, repo, src, dst):
     # RunCompression, and the decompressor reads whether preprocessing was
     # applied out of the stream header. So everything decompresses with -d.
     if mode == "dict":
-        return [binary, "-d", os.path.join(repo, "dictionary/english.dic"), src, dst]
+        return [binary, "-d", dict_path(repo), src, dst]
     return [binary, "-d", src, dst]
 
 
@@ -151,6 +159,7 @@ def main():
         "seed": int(args.seed),
         "march": args.march,
         "pgo": os.environ.get("ABLATION_PGO", "0") == "1",
+        "dict_path": os.path.basename(dict_path(args.repo)) if args.mode == "dict" else None,
         "host_cpu": open("/proc/cpuinfo").read().split("model name")[1]
                     .split(":")[1].split("\n")[0].strip(),
         "corpora": {},
