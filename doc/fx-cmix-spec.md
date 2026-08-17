@@ -1,5 +1,14 @@
 # fx-cmix: what we know about this codebase
 
+> **This repo is NOT the current Hutter Prize winner.** fx-cmix (Kaido Orav)
+> won on **2 Feb 2024** with S = 112 578 322. It was superseded on
+> **3 Sept 2024** by **fx2-cmix** (Kaido Orav & Byron Knoll), S = 110 793 128,
+> which still holds the record — a gap of 1 785 194 bytes (1.59%).
+> `doc/fx2-cmix.md` studies that successor, so it is not prior art *for* this
+> codebase but analysis *of the thing that beat it*. Findings here are valid
+> for fx-cmix; §1.1 lists what fx2 has that this does not, and those
+> differences are where conclusions stop transferring.
+
 **Status: EVERGREEN — this file is the record.** Findings established by
 reading the source or by measurement go here, not into chat transcripts. Each
 claim carries either a `file:line` reference or the number it was measured at,
@@ -201,6 +210,39 @@ that optimises saving relative to plaintext, which is not the objective.
 choosing a vocabulary.** It scores length only, and length is not the goal.
 Use it to measure the transform in isolation; use a full-model run to choose
 between word lists.
+
+### 3.1b Standalone power: every family alone gets most of the way
+
+Leave-one-in on input2, shipped vocab. Floor is `bare` (no models, mixers and
+SSE only); the full system is the 490-input ensemble.
+
+**Dict arm** — floor 3.6695, full 1.3621, achievable 2.3074:
+
+| Family | alone | standalone power | marginal (leave-one-out) |
+| --- | ---: | ---: | ---: |
+| `fxcm` | **1.3749** | 2.2946 | +0.0764 |
+| `ppmd` | 1.5163 | 2.1533 | +0.0096 |
+| `word` | 1.6525 | 2.0171 | +0.0007 |
+| `dindirect` | 1.6973 | 1.9722 | −0.0002 |
+| `match` | 1.9574 | 1.7121 | +0.0000 |
+| `bracket` | 2.2867 | 1.3828 | +0.0001 |
+
+**Sum of standalone power is 11.53 against 2.31 achievable — 5.0× overshoot.**
+The nodict arm gives 14.13 against 2.98, 4.7×, so this is not a dictionary
+artefact.
+
+Consequences:
+
+- **fxcm alone reaches 1.3749; all 490 models reach 1.3621.** The other five
+  families together add 0.0128 bits/char on top of fxcm. Without fxcm the
+  whole cmix side manages 1.4385.
+- **The two columns disagree completely.** `bracket` is noise by marginal cost
+  (+0.0001) and substantial standalone (1.3828). Every family recovers most of
+  the achievable compression alone; none is individually necessary.
+- **`bare` is 3.6695, not 4.7485** — with no models the mixers and SSE still
+  compress by 1.08 bits/char, because SSE is adaptive over its own bit-history
+  contexts. SSE's marginal contribution is +0.0011. It does a lot alone and
+  almost nothing on top of everything else.
 
 ### 3.2 Leave-one-out deltas do not sum to the total, and cannot
 

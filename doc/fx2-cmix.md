@@ -484,6 +484,47 @@ models exploit the resulting density. The *content* redundancy (title↔translat
 is untouched. That is both an endorsement of the cheap move and an explicit
 statement of where headroom remains.
 
+#### Is there order to exploit? Measured on our corpus
+
+fx2-cmix does not model the code sequence, so the obvious follow-up is whether
+there is a sequence worth modelling. There is, and it is not the obvious one.
+
+*Method.* `exact_100m` token stream (22,485,403 positions, $V=35{,}610$). Thirty
+language codes appear as fused vocabulary tokens of the form `]]\n[[·xx:^`;
+43,209 occurrences. Runs segmented by a ≤40-token gap between consecutive
+language tokens, keeping runs of ≥3 links: **5,410 runs**.
+
+| statistic | value |
+| --- | --- |
+| sorted alphabetically **by code** | 44.5% of runs |
+| pairwise precedence consistency | **97.7%** (165,009 ordered pairs) |
+| exactly matching inferred canonical order | 36.6% |
+| mean inversions from canonical | 2.27 per run (0.304 per link) |
+| naive $\log_2(k!)$ | 14.8 bits/run |
+
+The 44.5% is the *wrong convention being tested*. Pairwise precedence is 97.7%
+consistent, so a single global order exists, and its inferred head —
+`de es fr it he nl … ja sr pl fi pt ru zh sv` — is the interwiki bot's
+**sort-by-local-language-name** order (Deutsch, Español, Français, Italiano, …,
+Nederlands), not sort-by-code.
+
+**Consequence.** The permutation is close to free, not expensive. A canonical
+order plus a peaked inversion model should reach roughly 4–8 bits/run against
+14.8 naive — *estimated from the inversion statistics, not measured*. Ordering is
+therefore a **secondary term**; the prize is which languages appear and what the
+titles are (§6.4). And the canonical order need not be transmitted at all: it is
+inferable prequentially from the decoded prefix.
+
+*Confounds, all of which bias the cost estimate low:*
+
+- Only the **30 codes that fused into vocabulary tokens** are visible. Rarer
+  languages sit as unfused byte sequences and are invisible to this scan, so run
+  lengths are underestimated and the true permutation cost is higher.
+- The middle of the inferred order (`be ceb cv war hi ur ka se pam sk`) is noise
+  — too few observations to rank. The 97.7% is carried by the frequent head.
+- Runs were segmented by a token-gap heuristic, not by parsing article
+  boundaries. A proper measurement should detokenize and count on bytes.
+
 ### 2.5 Namespace prefixes, tables, emphasis
 
 - `Category:` **/** `Image:` **/** `Template:` — not extracted, not rewritten.
@@ -942,6 +983,71 @@ designed to test it rather than assume it.
 - Convention: reordering the byte stream is a real change to what "exact bits on
 the exact enwik bytes" means. The permutation must be inverted exactly, and the
 spec must say so.
+
+#### How big is the prize
+
+Sizing, from the same scan as §2.4: 43,209 fused-token occurrences is a **lower
+bound** on link count (rarer codes are invisible). Estimating 50–80k links at
+~20 bytes each gives ~1–1.6 MB, i.e. **~1–1.5% of enwik8 raw**. Against a ~15 MB
+compressed target, a codec that cuts the block's cost to a third lands in the
+1%-of-compressed range a Hutter submission needs. *This is a back-of-envelope
+extrapolation from a token-level proxy, not a measurement* — confirm against the
+raw dump before building.
+
+#### The payload, decomposed
+
+The three parts cost wildly different amounts and want different mechanisms.
+
+1. **Which languages** — a subset of ~180, and the bulk of the real information.
+It is strongly correlated: `fr`/`de`/`es`/`it`/`pl`/`nl`/`ja`/`sv` travel
+together, and an article with a Farsi link almost certainly has a French one.
+Correlated subset membership is exactly what a low-rank model is good at.
+Represented as a **set** rather than a byte sequence, this becomes material for
+the spectral layer instead of the 30 wasted near-duplicate rows it currently
+occupies.
+
+2. **The order** — measured in §2.4. 97.7% pairwise-consistent under a
+sort-by-local-name convention, ~4–8 bits/run against 14.8 naive, and the
+canonical order is **inferable prequentially from the decoded prefix, so it costs
+zero transmitted bits**. Secondary term; do not design around it.
+
+3. **The titles** — *not* mechanical. The near-copy holds for proper nouns
+(`[[fr:Alsace]]` under `<title>Alsace</title>`) and fails for common nouns
+(*Water* → *Eau* → *Wasser* → *Agua*). So model it as **copy-with-edits against
+the English title**, and let the model learn per-language how often copying
+works: an identical title collapses to one symbol, *Wasser* costs a real diff.
+The slug is not a fourth item — in wikitext the link target *is* the title with
+spaces as underscores, genuinely mechanical and nearly free either way.
+
+#### Build the general mechanism, not the special case
+
+Part 3 is a **copy-from-context capability**, and our model has none. It cannot
+express "the same string that appeared at position $X$" — not for interlanguage
+titles, not for `<title>` reappearing bolded in the first sentence, not for
+`[[Foo|Foos]]`, not for a repeated entity name three paragraphs later.
+Interlanguage links are the most conspicuous symptom, not the disease.
+
+fx2-cmix's answer is a 61-line match *model* (`models/match.cpp`, §1.4) that
+transmits no pointer at all — it predicts, and the coder charges ~0 bits when the
+prediction is right. That is the mechanism to copy, and it pays everywhere rather
+than in one block. See also [[order-and-association#Self-recurrence]]: the
+burstiness prior is the same capability viewed from the count side, and it is
+natively prequential.
+
+**If only one gets built, build the general one.**
+
+#### Two cautions specific to a hand-written codec
+
+- **Invertibility must be by construction.** fx2-cmix's rule carries four
+hardcoded enwik9 article titles as exceptions (§2.1, §2.4) — invertibility
+established by tuning against one corpus. That is acceptable for a submission and
+unacceptable for a spec that claims code is reproducible from it.
+- **A codec removes the block from the model's view entirely.** For mode budget
+that is an advantage over tokenizer-side fixes, and more complete than them. But
+it is removal, not learning: the bits saved are not attributable to the model,
+and the "why did the modes come out like that" question learns nothing from it.
+Legitimate for a bits goal; near-worthless for an understanding goal. Decide
+which before building.
 
 
 
