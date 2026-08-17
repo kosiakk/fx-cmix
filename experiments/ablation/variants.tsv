@@ -20,10 +20,12 @@ prep_nopretrain	-DABLATE_PRETRAIN	dict	preprocess	WRT dictionary transform, no p
 prep_none	-	noprep	preprocess	No preprocessing at all
 fxcm_check	-DABLATE_FXCM	dict	integrity	Duplicate of fxcm on another host; must match byte for byte
 prep_dict	-	dict	integrity	Dict baseline measured on the old container build; cross-checks build config
-only_fxcm	-DABLATE_PPMD -DABLATE_BRACKET -DABLATE_WORD -DABLATE_MATCH -DABLATE_DOUBLE_INDIRECT	dict	decompose	Leave-one-in: fxcm alone (plus mixers and SSE)
-only_ppmd	-DABLATE_FXCM -DABLATE_BRACKET -DABLATE_WORD -DABLATE_MATCH -DABLATE_DOUBLE_INDIRECT	dict	decompose	Leave-one-in: PPM and its LSTM alone
-only_word	-DABLATE_FXCM -DABLATE_PPMD -DABLATE_BRACKET -DABLATE_MATCH -DABLATE_DOUBLE_INDIRECT	dict	decompose	Leave-one-in: word-context models alone
-only_cm	-DABLATE_FXCM	dict	decompose	Leave-one-in: the whole cmix side, fxcm removed
-bare	-DABLATE_FXCM -DABLATE_PPMD -DABLATE_BRACKET -DABLATE_WORD -DABLATE_MATCH -DABLATE_DOUBLE_INDIRECT	dict	decompose	Floor: every model removed, mixers and SSE only
 null	-DABLATE_FXCM -DABLATE_PPMD -DABLATE_LSTM -DABLATE_BRACKET -DABLATE_WORD -DABLATE_MATCH -DABLATE_DOUBLE_INDIRECT -DABLATE_SSE -DABLATE_MIXER_GATING -DABLATE_MIXER_RECURRENCE -DABLATE_MIXER_SKIP -DABLATE_MIXER_DECAY -DABLATE_MIXER_WDECAY -DABLATE_LSTM_OVERRIDE -DABLATE_PRETRAIN 	dict	decompose	Every ablation at once: no models, no gating, no SSE
 null_nodict	-DABLATE_FXCM -DABLATE_PPMD -DABLATE_LSTM -DABLATE_BRACKET -DABLATE_WORD -DABLATE_MATCH -DABLATE_DOUBLE_INDIRECT -DABLATE_SSE -DABLATE_MIXER_GATING -DABLATE_MIXER_RECURRENCE -DABLATE_MIXER_SKIP -DABLATE_MIXER_DECAY -DABLATE_MIXER_WDECAY -DABLATE_LSTM_OVERRIDE -DABLATE_PRETRAIN 	nodict	decompose	Every ablation, no dictionary: should be exactly 8 bits/char
+only_fxcm	-DABLATE_PPMD -DABLATE_BRACKET -DABLATE_WORD -DABLATE_MATCH -DABLATE_DOUBLE_INDIRECT	dict	leave-one-in	Only fxcm kept (plus mixers and SSE)
+only_ppmd	-DABLATE_FXCM -DABLATE_BRACKET -DABLATE_WORD -DABLATE_MATCH -DABLATE_DOUBLE_INDIRECT	dict	leave-one-in	Only ppmd kept (plus mixers and SSE)
+only_bracket	-DABLATE_FXCM -DABLATE_PPMD -DABLATE_WORD -DABLATE_MATCH -DABLATE_DOUBLE_INDIRECT	dict	leave-one-in	Only bracket kept (plus mixers and SSE)
+only_word	-DABLATE_FXCM -DABLATE_PPMD -DABLATE_BRACKET -DABLATE_MATCH -DABLATE_DOUBLE_INDIRECT	dict	leave-one-in	Only word kept (plus mixers and SSE)
+only_match	-DABLATE_FXCM -DABLATE_PPMD -DABLATE_BRACKET -DABLATE_WORD -DABLATE_DOUBLE_INDIRECT	dict	leave-one-in	Only match kept (plus mixers and SSE)
+only_dindirect	-DABLATE_FXCM -DABLATE_PPMD -DABLATE_BRACKET -DABLATE_WORD -DABLATE_MATCH	dict	leave-one-in	Only dindirect kept (plus mixers and SSE)
+bare	-DABLATE_FXCM -DABLATE_PPMD -DABLATE_BRACKET -DABLATE_WORD -DABLATE_MATCH -DABLATE_DOUBLE_INDIRECT	dict	leave-one-in	Floor: no models at all, mixers and SSE only

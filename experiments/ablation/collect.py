@@ -16,8 +16,8 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
-GROUP_ORDER = ["baseline", "noise", "ensemble", "mixing", "preprocess",
-               "decompose", "integrity"]
+GROUP_ORDER = ["baseline", "noise", "ensemble", "leave-one-in", "mixing",
+               "preprocess", "decompose", "integrity"]
 SUFFIX = {"dict": "", "nodict": "-no-dict", "noprep": "-no-prep"}
 
 
@@ -200,8 +200,8 @@ def budget(corpus="input2"):
         return ""
     deltas = []
     for vid, rec in r.items():
-        if (vid in ("baseline", "prep_dict") or vid.startswith("seed")
-                or vid.startswith("only_") or vid == "bare"):
+        if (vid in ("baseline", "prep_dict", "bare") or vid.startswith("seed")
+                or vid.startswith(("only_", "null", "full_"))):
             continue
         v = bpc(rec, corpus)
         if v is not None:
