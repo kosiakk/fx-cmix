@@ -16,7 +16,8 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
-GROUP_ORDER = ["baseline", "noise", "ensemble", "mixing", "preprocess", "integrity"]
+GROUP_ORDER = ["baseline", "noise", "ensemble", "mixing", "preprocess",
+               "decompose", "integrity"]
 SUFFIX = {"dict": "", "nodict": "-no-dict", "noprep": "-no-prep"}
 
 
@@ -78,8 +79,8 @@ def noise_floor(results, corpus):
 def table(info):
     """One table across all arms; non-dictionary rows carry a -no-dict suffix."""
     print("| Variant | Group | Models | input 0.05 MB | Δ | input2 0.93 MB | Δ "
-          "| UPX exe | Δ exe | Verdict |")
-    print("| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |")
+          "| Δ %budget | UPX exe | Δ exe | Verdict |")
+    print("| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |")
 
     floors = {}
     for mode in modes_present():
@@ -123,9 +124,13 @@ def table(info):
             bupx = base.get("exe_upx_bytes") if base else None
             dupx = None if (upx is None or bupx is None) else upx - bupx
 
-            print("| `%s%s` | %s | %s | %s | %s | %s | %s | %s | %s | %s |" % (
+            # Share of the compression the baseline actually achieves
+            # (8 bits/char of raw input down to b2), not of the output size.
+            pct = ("-" if (d2 is None or b2 is None)
+                   else "%+.2f%%" % (100.0 * d2 / (8.0 - b2)))
+            print("| `%s%s` | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |" % (
                 r["id"], sfx, group, r.get("num_models") or "-",
-                fmt(v1), signed(d1), fmt(v2), signed(d2),
+                fmt(v1), signed(d1), fmt(v2), signed(d2), pct,
                 upx or "-", "-" if dupx is None else "%+d" % dupx, verdict))
 
     print()
@@ -176,6 +181,53 @@ def break_even(corpus="input2"):
                "earns its place.")
     return "\n".join(out)
 
+
+
+def budget(corpus="input2"):
+    """How much of the compression the ablations actually account for.
+
+    Leave-one-out measures each mechanism's *irreplaceable* contribution: with
+    490 inputs the mixer re-weights and the survivors reconstruct nearly
+    everything a removed model knew. Shared information -- almost all of it --
+    is claimed by no single ablation, so these deltas are not expected to sum
+    to the total and the gap is a measure of redundancy, not of error.
+    """
+    r = load("dict") or load("nodict")
+    if "baseline" not in r:
+        return ""
+    b = bpc(r["baseline"], corpus)
+    if b is None:
+        return ""
+    deltas = []
+    for vid, rec in r.items():
+        if (vid in ("baseline", "prep_dict") or vid.startswith("seed")
+                or vid.startswith("only_") or vid == "bare"):
+            continue
+        v = bpc(rec, corpus)
+        if v is not None:
+            deltas.append(v - b)
+    if not deltas:
+        return ""
+    total, achieved = sum(deltas), 8.0 - b
+    return "\n".join([
+        "", "### Where the bits actually come from (`%s`)" % corpus, "",
+        "| Quantity | bits/char |", "| --- | ---: |",
+        "| Raw input | 8.0000 |",
+        "| Baseline output | %.4f |" % b,
+        "| **Compression achieved** | **%.4f** |" % achieved,
+        "| Sum of %d ablation deltas | %.4f |" % (len(deltas), total),
+        "",
+        "The ablations account for **%.1f%%** of the compression achieved "
+        "(%.1f%% of the output size). The other %.1f%% is redundancy: "
+        "information several mechanisms predict independently, so removing "
+        "any one of them costs nothing and no single ablation can claim it."
+        % (100 * total / achieved, 100 * total / b,
+           100 - 100 * total / achieved),
+        "",
+        "Decomposing the remainder needs a different design -- leave-one-in "
+        "(standalone power, sums above the total), cumulative ablation (sums "
+        "exactly, but order-dependent), or sampled Shapley values.",
+    ])
 
 def interaction(corpus="input2"):
     """Does a mechanism earn more or less once the dictionary is applied?
@@ -232,7 +284,7 @@ def main():
         print("no results yet", file=sys.stderr)
         return 1
     table(meta())
-    for section in (break_even(), interaction()):
+    for section in (budget(), break_even(), interaction()):
         if section:
             print(section)
     return 0

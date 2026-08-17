@@ -20,3 +20,8 @@ prep_nopretrain	-DABLATE_PRETRAIN	dict	preprocess	WRT dictionary transform, no p
 prep_none	-	noprep	preprocess	No preprocessing at all
 fxcm_check	-DABLATE_FXCM	dict	integrity	Duplicate of fxcm on another host; must match byte for byte
 prep_dict	-	dict	integrity	Dict baseline measured on the old container build; cross-checks build config
+only_fxcm	-DABLATE_PPMD -DABLATE_BRACKET -DABLATE_WORD -DABLATE_MATCH -DABLATE_DOUBLE_INDIRECT	dict	decompose	Leave-one-in: fxcm alone (plus mixers and SSE)
+only_ppmd	-DABLATE_FXCM -DABLATE_BRACKET -DABLATE_WORD -DABLATE_MATCH -DABLATE_DOUBLE_INDIRECT	dict	decompose	Leave-one-in: PPM and its LSTM alone
+only_word	-DABLATE_FXCM -DABLATE_PPMD -DABLATE_BRACKET -DABLATE_MATCH -DABLATE_DOUBLE_INDIRECT	dict	decompose	Leave-one-in: word-context models alone
+only_cm	-DABLATE_FXCM	dict	decompose	Leave-one-in: the whole cmix side, fxcm removed
+bare	-DABLATE_FXCM -DABLATE_PPMD -DABLATE_BRACKET -DABLATE_WORD -DABLATE_MATCH -DABLATE_DOUBLE_INDIRECT	dict	decompose	Floor: every model removed, mixers and SSE only
