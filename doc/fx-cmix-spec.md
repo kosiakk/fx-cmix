@@ -173,22 +173,34 @@ enwik8, so the counts are from held-out text.
 model ablation except `fxcm` — bigger than removing PPM, the LSTM, or mixer
 gating. It comes from sorting word counts.
 
-Two things qualify it:
+**But with the models on, the shipped order wins.** Full 490-model run on
+input2, same two word lists:
 
-- **The shipped list is not frequency-ordered at all.** Its one-byte tier
-  begins `will would can may it there he they`; frequency order begins
-  `the of and in a to is s`. That is a different objective, not a near miss.
-  A plausible explanation is that the shipped order was tuned against the
-  **phda9-preprocessed** stream used by the real `-e` pipeline, where frequent
-  function words may already be handled upstream — in which case testing on
-  raw text through `-c` flatters frequency sorting. **Unverified, and it
-  should be checked before acting on this result.**
-- **Weighting by bytes saved is worse, not better.** Ranking by
-  `count × (len − code_len)` scored +0.0444, behind plain frequency. It places
-  36.7% of covered occurrences in the one-byte tier against frequency's 40.9%,
-  trading many short frequent words for fewer long ones. The arithmetic favours
-  it; the measurement does not. Relevant because that is the intuition a
-  tokenizer objective would naturally encode.
+| Word list | no models | full system |
+| --- | ---: | ---: |
+| shipped (hand-curated) | 4.7485 | **1.3621** |
+| frequency-sorted | **4.7059** | 1.3998 |
+| | frequency −0.0427 | frequency **+0.0377** |
+
+The ordering that minimises stream *length* is not the ordering that minimises
+compressed size. Hand curation pays 0.0427 bits/char in length and earns more
+than that back in predictability.
+
+**Why frequency sorting is optimal for the null case, and only that case.**
+With no predictors the coder emits exactly 8 bits per byte, so output size is
+`Σ freq(w) × code_len(rank(w))` plus untouched bytes. The word's own length
+never appears — it has been replaced. By the rearrangement inequality the
+minimum is achieved by assigning the shortest codes to the most frequent
+words, i.e. plain frequency order. So 4.7059 is essentially the optimum for
+this vocabulary, and the shipped list sits 4 965 bytes above it *by choice*.
+
+This also explains why ranking by `count × (len − code_len)` lost (4.7929):
+that optimises saving relative to plaintext, which is not the objective.
+
+**Methodological consequence: the null build is a biased instrument for
+choosing a vocabulary.** It scores length only, and length is not the goal.
+Use it to measure the transform in isolation; use a full-model run to choose
+between word lists.
 
 ### 3.2 Leave-one-out deltas do not sum to the total, and cannot
 
